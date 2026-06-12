@@ -8,12 +8,29 @@ import config from "../neon";
 import { ratings } from "./db/schema";
 import { generateRating } from "./lib/rate";
 import { normalizeUrl, slugFromUrl } from "./lib/slug";
+import { assertSafeUrl, UnsafeUrlError } from "./lib/safeFetch";
+import { hitRateLimit } from "./lib/ratelimit";
+import type { Context } from "hono";
 
 const env = parseEnv(config);
 const pool = new Pool({ connectionString: env.postgres.databaseUrl, max: 5 });
 const db = drizzle(pool);
 
 const REGEN_AFTER_MS = 24 * 60 * 60 * 1000; // 1 day
+const RATE_LIMIT_PER_IP = Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 20);
+const RATE_LIMIT_GLOBAL = Number(process.env.RATE_LIMIT_GLOBAL_PER_HOUR ?? 300);
+
+function clientIp(c: Context): string {
+  const xff = c.req.header("x-forwarded-for");
+  const first = xff?.split(",")[0]?.trim();
+  return (
+    first ||
+    c.req.header("x-real-ip") ||
+    c.req.header("cf-connecting-ip") ||
+    c.req.header("x-vercel-forwarded-for") ||
+    "unknown"
+  );
+}
 
 const app = new Hono();
 
@@ -71,11 +88,11 @@ app.post("/rate", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json({ error: "invalid_json" }, 400);
+    return c.json({ error: "invalid_json", message: "Malformed request." }, 400);
   }
 
   if (!body.url || typeof body.url !== "string") {
-    return c.json({ error: "missing_url" }, 400);
+    return c.json({ error: "missing_url", message: "Please provide a pricing page URL." }, 400);
   }
 
   let normalized: string;
@@ -84,14 +101,53 @@ app.post("/rate", async (c) => {
     normalized = normalizeUrl(body.url);
     slug = slugFromUrl(normalized);
   } catch {
-    return c.json({ error: "invalid_url" }, 400);
+    return c.json({ error: "invalid_url", message: "That doesn't look like a valid URL." }, 400);
+  }
+
+  // SSRF guard: never let the agent fetch internal/private targets.
+  try {
+    await assertSafeUrl(normalized);
+  } catch (err) {
+    if (err instanceof UnsafeUrlError) {
+      return c.json(
+        { error: "blocked_url", message: "That URL points somewhere we can't rate. Try a public pricing page." },
+        400,
+      );
+    }
+    throw err;
   }
 
   const [existing] = await db.select().from(ratings).where(eq(ratings.slug, slug)).limit(1);
   const age = existing ? Date.now() - new Date(existing.updatedAt).getTime() : Infinity;
 
+  // Cached results are always free — only fresh generations are rate limited.
   if (existing && !body.force && age < REGEN_AFTER_MS) {
     return c.json({ cached: true, rating: existing });
+  }
+
+  const ipHit = await hitRateLimit(db, `ip:${clientIp(c)}`, RATE_LIMIT_PER_IP);
+  if (!ipHit.allowed) {
+    c.header("retry-after", String(ipHit.retryAfterSeconds));
+    return c.json(
+      {
+        error: "rate_limited",
+        message: `You've hit the limit of ${RATE_LIMIT_PER_IP} new ratings per hour. Cached results are always free — try again later.`,
+        retryAfterSeconds: ipHit.retryAfterSeconds,
+      },
+      429,
+    );
+  }
+  const globalHit = await hitRateLimit(db, "global", RATE_LIMIT_GLOBAL);
+  if (!globalHit.allowed) {
+    c.header("retry-after", String(globalHit.retryAfterSeconds));
+    return c.json(
+      {
+        error: "rate_limited",
+        message: "The agent is swamped with new ratings right now. Try again in a bit.",
+        retryAfterSeconds: globalHit.retryAfterSeconds,
+      },
+      429,
+    );
   }
 
   const { row } = await generateRating(normalized);

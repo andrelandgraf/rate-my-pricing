@@ -31,16 +31,39 @@ export async function fetchRating(slug: string): Promise<Rating | null> {
   }
 }
 
+export class RateError extends Error {
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+    this.name = "RateError";
+  }
+}
+
 /** Client-side: kick off (or fetch cached) a rating for a URL. Long-running. */
 export async function rateUrl(url: string, force = false): Promise<RateResponse> {
-  const res = await fetch(`${API_URL}/rate`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ url, force }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/rate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url, force }),
+    });
+  } catch {
+    // Network-level failure (connection dropped, offline, CORS, etc.).
+    throw new RateError("network", "Couldn't reach the agent. Check your connection and try again.");
+  }
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "request_failed" }));
-    throw new Error((err as { error?: string }).error ?? "request_failed");
+    const err = (await res.json().catch(() => null)) as
+      | { error?: string; message?: string }
+      | null;
+    throw new RateError(err?.error ?? "request_failed", err?.message ?? defaultMessage(res.status));
   }
   return (await res.json()) as RateResponse;
+}
+
+function defaultMessage(status: number): string {
+  if (status === 429) return "Too many ratings right now — try again in a little while.";
+  if (status >= 500) return "The agent tripped over that one. Try another page?";
+  return "Something went wrong. Try another page?";
 }

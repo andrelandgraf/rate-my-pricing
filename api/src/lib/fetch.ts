@@ -1,4 +1,5 @@
 import type { FetchResult } from "./types";
+import { safeFetch, UnsafeUrlError } from "./safeFetch";
 
 const UA =
   "Mozilla/5.0 (compatible; RateMyPricingBot/1.0; +https://rate-my-pricing.vercel.app)";
@@ -6,18 +7,12 @@ const MAX_CHARS = 40_000;
 const TIMEOUT_MS = 20_000;
 
 async function timedFetch(url: string, headers: Record<string, string>): Promise<Response | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      headers: { "user-agent": UA, ...headers },
-      redirect: "follow",
-      signal: controller.signal,
-    });
-  } catch {
+    return await safeFetch(url, { "user-agent": UA, ...headers }, TIMEOUT_MS);
+  } catch (err) {
+    // A redirect into a private/internal host (SSRF) is treated as an unfetchable page.
+    if (err instanceof UnsafeUrlError) return null;
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

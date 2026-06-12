@@ -7,6 +7,7 @@ import {
   jsonb,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { PricingTree } from "../lib/types";
 
@@ -38,3 +39,20 @@ export const ratings = pgTable(
 
 export type RatingRow = typeof ratings.$inferSelect;
 export type NewRatingRow = typeof ratings.$inferInsert;
+
+/** Fixed-window counters for rate limiting expensive (token-burning) generations. */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    id: serial("id").primaryKey(),
+    bucket: text("bucket").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => ({
+    bucketWindowIdx: uniqueIndex("rate_limits_bucket_window_idx").on(
+      table.bucket,
+      table.windowStart,
+    ),
+  }),
+);

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { rateUrl } from "@/lib/api";
+import { rateUrl, RateError } from "@/lib/api";
 
 const STEPS = [
   "Knocking on the door 🚪",
@@ -46,8 +46,8 @@ export default function SubmitForm({ autofocus = false }: { autofocus?: boolean 
       router.push(`/${res.rating.slug}`);
     } catch (err) {
       setError(
-        err instanceof Error && err.message === "invalid_url"
-          ? "Hmm, that doesn't look like a URL."
+        err instanceof RateError
+          ? err.message
           : "The agent tripped over that one. Try another page?",
       );
       setLoading(false);
