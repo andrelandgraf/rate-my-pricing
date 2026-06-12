@@ -47,11 +47,6 @@ app.onError((err, c) => {
 
 app.get("/", (c) => c.json({ service: "rate-my-pricing", status: "ok" }));
 
-// Temporary: throws so we can confirm errors reach Sentry. Removed after verification.
-app.get("/debug-sentry", () => {
-  throw new Error("rate-my-pricing function Sentry test");
-});
-
 const SORTS = {
   worst: asc(ratings.pricingScore),
   best: desc(ratings.pricingScore),
