@@ -32,35 +32,37 @@ function truncate(value: string, max: number): string {
 
 function Gauge({ score, label, caption }: { score: number; label: string; caption: string }) {
   const color = scoreColor(score);
-  const deg = Math.round((score / 100) * 360);
+  const radius = 84;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (Math.max(0, Math.min(100, score)) / 100) * circumference;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 230 }}>
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          position: "relative",
           width: 200,
           height: 200,
-          borderRadius: 200,
-          border: `6px solid ${INK}`,
-          backgroundImage: `conic-gradient(${color} 0deg ${deg}deg, ${TRACK} ${deg}deg 360deg)`,
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 150,
-            height: 150,
-            borderRadius: 150,
-            backgroundColor: CARD,
-            border: `3px solid ${INK}`,
-          }}
-        >
-          <div style={{ display: "flex", fontSize: 78, fontWeight: 800, color }}>{score}</div>
-        </div>
+        <svg width="200" height="200" viewBox="0 0 200 200" style={{ position: "absolute", top: 0, left: 0 }}>
+          <circle cx="100" cy="100" r={radius} fill={CARD} stroke={INK} strokeWidth="20" />
+          <circle cx="100" cy="100" r={radius} fill="none" stroke={TRACK} strokeWidth="13" />
+          <circle
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth="13"
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${circumference}`}
+            transform="rotate(-90 100 100)"
+          />
+        </svg>
+        <div style={{ display: "flex", fontSize: 74, fontWeight: 800, color }}>{score}</div>
       </div>
       <div style={{ display: "flex", marginTop: 16, fontSize: 26, fontWeight: 800, color: INK }}>
         {label}
