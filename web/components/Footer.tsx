@@ -14,7 +14,6 @@ export default function Footer() {
           </a>{" "}
           agent + Postgres cache, on Vercel.
         </p>
-        <p className="font-mono">made for fun · not affiliated with any rated site</p>
       </div>
     </footer>
   );
