@@ -20,9 +20,15 @@ export async function generateMetadata({
   const { slug } = await params;
   const rating = await fetchRating(slug);
   if (!rating) return { title: "Not found · Rate My Pricing" };
+  const title = `${rating.title} — pricing ${rating.pricingScore}/100 · Rate My Pricing`;
+  const description =
+    rating.summary ||
+    `${rating.title}: pricing clarity ${rating.pricingScore}/100, agent easiness ${rating.agentScore}/100.`;
   return {
-    title: `${rating.title} — pricing ${rating.pricingScore}/100 · Rate My Pricing`,
-    description: rating.summary || `How clear is ${rating.title}'s pricing page?`,
+    title,
+    description,
+    openGraph: { title, description, type: "article" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
