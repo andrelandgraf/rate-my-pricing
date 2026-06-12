@@ -1,18 +1,17 @@
 export default function Footer() {
   return (
     <footer className="mt-16 border-t-[3px] border-ink/80">
-      <div className="mx-auto max-w-5xl px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm font-medium text-ink-soft">
+      <div className="mx-auto max-w-5xl px-4 py-8 flex items-center justify-center text-sm font-medium text-ink-soft">
         <p>
-          Built with a{" "}
+          made by{" "}
           <a
-            href="https://neon.com/docs/compute/functions/overview"
+            href="https://x.com/andrelandgraf"
             target="_blank"
             rel="noreferrer"
-            className="underline decoration-wavy decoration-grape underline-offset-2"
+            className="font-semibold text-ink underline decoration-wavy decoration-grape underline-offset-2 hover:text-grape transition-colors"
           >
-            Neon Function
-          </a>{" "}
-          agent + Postgres cache, on Vercel.
+            andrelandgraf
+          </a>
         </p>
       </div>
     </footer>
