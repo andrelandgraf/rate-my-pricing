@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.56.0",
     "@vercel/analytics": "^2.0.1",
     "canvas-confetti": "^1.9.3",
     "next": "^15.5.0",
