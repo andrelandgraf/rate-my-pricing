@@ -45,11 +45,6 @@ export const pricingTreeSchema = z.object({
 export type PricingTree = z.infer<typeof pricingTreeSchema>;
 
 export const parseMetaSchema = z.object({
-  parseConfidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("How confident you are that you correctly captured the real pricing (0-1)."),
   requiresInteraction: z
     .boolean()
     .describe("True if real pricing is hidden behind a calculator, login, or 'contact sales'."),

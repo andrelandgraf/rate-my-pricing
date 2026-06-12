@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { PricingTree } from "../lib/types";
+import type { Breakdown } from "../lib/score";
 
 export const ratings = pgTable(
   "ratings",
@@ -22,6 +23,7 @@ export const ratings = pgTable(
     pricingScore: integer("pricing_score").notNull(),
     agentScore: integer("agent_score").notNull(),
     tree: jsonb("tree").$type<PricingTree>().notNull(),
+    breakdown: jsonb("breakdown").$type<Breakdown>(),
     source: text("source").notNull(),
     model: text("model").notNull().default(""),
     fetchOk: boolean("fetch_ok").notNull().default(true),

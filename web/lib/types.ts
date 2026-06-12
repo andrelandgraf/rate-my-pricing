@@ -21,6 +21,9 @@ export type PricingTree = {
   notes: string;
 };
 
+export type ScoreLine = { label: string; points: number };
+export type Breakdown = { pricing: ScoreLine[]; agent: ScoreLine[] };
+
 export type Rating = {
   id: number;
   slug: string;
@@ -30,6 +33,7 @@ export type Rating = {
   pricingScore: number;
   agentScore: number;
   tree: PricingTree;
+  breakdown: Breakdown | null;
   source: "markdown" | "html" | "none";
   model: string;
   fetchOk: boolean;

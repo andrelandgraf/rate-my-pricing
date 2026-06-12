@@ -1,15 +1,27 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { generateObject, type LanguageModel } from "ai";
 import { agentOutputSchema, type AgentOutput, type FetchResult } from "./types";
 
 export const MODEL = "gpt-5-mini";
-const FALLBACK_MODEL = "claude-haiku-4-5";
 
-// The injected OPENAI_BASE_URL points at the Responses dialect; @ai-sdk/openai uses it by default.
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY ?? process.env.NEON_AI_GATEWAY_TOKEN,
-  baseURL: process.env.OPENAI_BASE_URL,
+const apiKey = process.env.OPENAI_API_KEY ?? process.env.NEON_AI_GATEWAY_TOKEN;
+
+// Two dialects on the same gateway:
+//  - OPENAI_BASE_URL is the OpenAI *Responses* dialect (/ai-gateway/openai/v1) — OpenAI models only.
+//  - the *MLflow* chat-completions dialect (/ai-gateway/mlflow/v1) serves every provider (incl. Claude).
+const openai = createOpenAI({ apiKey, baseURL: process.env.OPENAI_BASE_URL });
+const gateway = createOpenAI({
+  apiKey,
+  baseURL: (process.env.OPENAI_BASE_URL ?? "").replace("/openai/v1", "/mlflow/v1"),
 });
+
+// Primary uses the Responses API (great structured outputs); fallbacks use the
+// unified chat-completions dialect so a different provider can recover transient failures.
+const MODELS: { label: string; model: LanguageModel }[] = [
+  { label: "gpt-5-mini (responses)", model: openai("gpt-5-mini") },
+  { label: "claude-haiku-4-5 (mlflow)", model: gateway.chat("claude-haiku-4-5") },
+  { label: "gpt-5-mini (mlflow)", model: gateway.chat("gpt-5-mini") },
+];
 
 const SYSTEM = [
   "You are a meticulous pricing analyst.",
@@ -20,7 +32,7 @@ const SYSTEM = [
   "annual-only discounts, contact-sales gates, calculators) in hiddenCostSignals — be conservative,",
   "only list real complexity, not normal feature differences between tiers.",
   "Set foundPricing=false only if the page exposes no concrete pricing at all.",
-  "Set requiresInteraction=true if the real price is gated behind a calculator, login, or sales call.",
+  "Set requiresInteraction=true only if the real price is gated behind a calculator, login, or sales call.",
 ].join(" ");
 
 function emptyOutput(note: string): AgentOutput {
@@ -34,15 +46,15 @@ function emptyOutput(note: string): AgentOutput {
       hiddenCostSignals: [note],
       notes: note,
     },
-    meta: { parseConfidence: 0, requiresInteraction: false, foundPricing: false },
+    meta: { requiresInteraction: false, foundPricing: false },
   };
 }
 
 const ATTEMPT_TIMEOUT_MS = 70_000;
 
-async function attempt(model: string, fetched: FetchResult, url: string): Promise<AgentOutput> {
+async function attempt(model: LanguageModel, fetched: FetchResult, url: string): Promise<AgentOutput> {
   const { object } = await generateObject({
-    model: openai(model),
+    model,
     schema: agentOutputSchema,
     system: SYSTEM,
     maxRetries: 1,
@@ -64,14 +76,13 @@ export async function parsePricing(fetched: FetchResult, url: string): Promise<A
     return emptyOutput("The agent could not retrieve readable content from this page.");
   }
 
-  const models = [MODEL, FALLBACK_MODEL];
   let lastError: unknown;
-  for (const model of models) {
+  for (const { label, model } of MODELS) {
     try {
       return await attempt(model, fetched, url);
     } catch (err) {
       lastError = err;
-      console.error(`[parse] model=${model} failed:`, err instanceof Error ? err.message : err);
+      console.error(`[parse] model=${label} failed:`, err instanceof Error ? err.message : err);
     }
   }
 

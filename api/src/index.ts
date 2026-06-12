@@ -164,6 +164,7 @@ app.post("/rate", async (c) => {
         pricingScore: row.pricingScore,
         agentScore: row.agentScore,
         tree: row.tree,
+        breakdown: row.breakdown,
         source: row.source,
         model: row.model,
         fetchOk: row.fetchOk,

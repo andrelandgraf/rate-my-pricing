@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScoreGauge from "@/components/ScoreGauge";
 import PricingTreeView from "@/components/PricingTreeView";
+import ScoreBreakdown from "@/components/ScoreBreakdown";
 import RegenerateButton from "@/components/RegenerateButton";
 import Confetti from "@/components/Confetti";
 import { fetchRating } from "@/lib/api";
@@ -109,6 +110,16 @@ export default async function RatingPage({
             </div>
           </div>
         </section>
+
+        {rating.breakdown && (
+          <section className="mx-auto max-w-5xl px-4 pt-10">
+            <ScoreBreakdown
+              breakdown={rating.breakdown}
+              pricingScore={rating.pricingScore}
+              agentScore={rating.agentScore}
+            />
+          </section>
+        )}
 
         <section className="mx-auto max-w-5xl px-4 pt-10">
           <PricingTreeView tree={rating.tree} />

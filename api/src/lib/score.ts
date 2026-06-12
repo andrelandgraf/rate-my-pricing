@@ -1,69 +1,99 @@
 import type { AgentOutput, FetchResult } from "./types";
 
+/** A single, human-readable line in a score's breakdown. */
+export type ScoreLine = { label: string; points: number };
+export type ScoreResult = { score: number; items: ScoreLine[] };
+export type Breakdown = { pricing: ScoreLine[]; agent: ScoreLine[] };
+
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+const total = (items: ScoreLine[]) => items.reduce((sum, i) => sum + i.points, 0);
 
 /**
- * Pricing complexity, expressed as an *easiness* score.
- * 100 = trivially simple to understand, 0 = byzantine.
+ * Pricing clarity — how easy the pricing is to understand. 100 = crystal clear.
  *
- * Complexity comes from the number of decisions a buyer must reason about — the
- * "levels and branches" of the pricing tree — and from how *predictable* the
- * final bill is. A long feature list is value, not complexity, so features are
- * deliberately not penalized; tiers, add-ons, metered dimensions, usage billing,
- * and sales-gating are.
+ * Transparent points system: start at 100 and apply named deductions. Complexity
+ * comes from how many decisions a buyer must make and how predictable the bill is.
+ * Plain feature lists are NOT penalized — only structural complexity is.
  */
-export function pricingScore(output: AgentOutput): number {
+export function pricingScore(output: AgentOutput): ScoreResult {
   const { tree, meta } = output;
 
   if (!meta.foundPricing) {
-    // No concrete pricing surfaced (e.g. pure "contact sales"). Opaque by definition.
-    return clamp(22 - tree.hiddenCostSignals.length * 4);
+    return {
+      score: 10,
+      items: [
+        { label: "Base score", points: 100 },
+        { label: "No public pricing shown on the page", points: -90 },
+      ],
+    };
   }
 
-  let score = 100;
+  const items: ScoreLine[] = [{ label: "Base score", points: 100 }];
 
-  // Levels: each tier beyond the first is another plan to compare.
   const extraTiers = Math.max(0, tree.tiers.length - 1);
-  score -= Math.min(22, extraTiers * 5);
+  if (extraTiers > 0) {
+    items.push({
+      label: `${tree.tiers.length} plans to compare`,
+      points: -Math.min(30, extraTiers * 6),
+    });
+  }
 
-  // Branches: add-ons / additional packages multiply the decision space.
-  score -= Math.min(15, tree.addOns.length * 3);
+  if (tree.billingModel === "usage" || tree.billingModel === "hybrid") {
+    items.push({ label: "Usage-based billing (harder to predict)", points: -15 });
+  }
 
-  // Metered dimensions (limits/quotas you have to track) make the bill harder to predict.
-  const dimensions = tree.tiers.reduce((sum, t) => sum + t.limits.length, 0);
-  score -= Math.min(12, dimensions * 0.4);
+  if (tree.addOns.length > 0) {
+    items.push({
+      label: `${tree.addOns.length} add-on${tree.addOns.length > 1 ? "s" : ""} / extras`,
+      points: -Math.min(16, tree.addOns.length * 4),
+    });
+  }
 
-  // Hidden / variable cost signals are the strongest complexity driver.
-  score -= Math.min(21, tree.hiddenCostSignals.length * 3);
+  if (tree.hiddenCostSignals.length > 0) {
+    items.push({
+      label: `${tree.hiddenCostSignals.length} hidden-cost signal${tree.hiddenCostSignals.length > 1 ? "s" : ""}`,
+      points: -Math.min(24, tree.hiddenCostSignals.length * 6),
+    });
+  }
 
-  // Usage / hybrid billing is inherently harder to predict than flat or per-seat.
-  if (tree.billingModel === "usage" || tree.billingModel === "hybrid") score -= 12;
+  if (meta.requiresInteraction) {
+    items.push({ label: "Real price needs a sales call / calculator", points: -10 });
+  }
 
-  // Pricing you can't actually see without talking to sales.
-  if (meta.requiresInteraction) score -= 8;
-
-  return clamp(score);
+  return { score: clamp(total(items)), items };
 }
 
 /**
- * Agent easiness: how easy was it for the agent to fetch + parse this page?
- * 100 = clean source, fully parsed, high confidence. 0 = couldn't get anything useful.
+ * Agent easiness — how easy it was for the agent to read the page. 100 = effortless.
+ *
+ * Scored purely from concrete, observable signals (no opaque confidence number):
+ * could we fetch it, was it clean markdown or messy HTML, did we find real pricing,
+ * and was the price gated behind interaction.
  */
-export function agentScore(fetched: FetchResult, output: AgentOutput): number {
-  if (!fetched.ok || fetched.source === "none") return 0;
+export function agentScore(fetched: FetchResult, output: AgentOutput): ScoreResult {
+  if (!fetched.ok || fetched.source === "none") {
+    return {
+      score: 0,
+      items: [
+        { label: "Base score", points: 100 },
+        { label: "Couldn't fetch the page at all", points: -100 },
+      ],
+    };
+  }
 
-  // Confidence is the backbone of the score.
-  let score = output.meta.parseConfidence * 100;
+  const items: ScoreLine[] = [{ label: "Base score", points: 100 }];
 
-  // Clean markdown is the happy path; raw HTML soup is harder and noisier.
-  if (fetched.source === "html") score -= 12;
+  if (fetched.source === "html") {
+    items.push({ label: "Read from raw HTML (no markdown)", points: -15 });
+  }
 
-  // If pricing is gated behind interaction, the agent did its best but was blocked.
-  if (output.meta.requiresInteraction) score -= 16;
-  if (!output.meta.foundPricing) score -= 25;
+  if (!output.meta.foundPricing) {
+    items.push({ label: "No concrete pricing to parse", points: -40 });
+  }
 
-  // Small reward for at least successfully retrieving the page.
-  score += 6;
+  if (output.meta.requiresInteraction) {
+    items.push({ label: "Pricing gated behind interaction", points: -20 });
+  }
 
-  return clamp(score);
+  return { score: clamp(total(items)), items };
 }

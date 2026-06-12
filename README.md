@@ -21,10 +21,38 @@ Rate My Pricing is a playful, full‑stack demo built on **[Neon](https://neon.c
 2. If a fresh rating exists in Postgres (< 1 day old), it's served straight from cache.
 3. Otherwise the agent **curls the page** — preferring `markdown` (via `Accept: text/markdown` or a `.md` URL), falling back to stripped HTML.
 4. The LLM extracts a **standardized pricing tree**: tiers, limits, features, add‑ons, and hidden‑cost signals.
-5. Two scores are computed from the tree (pure, deterministic functions):
-   - **🧾 Pricing clarity** — `100` = crystal clear, `0` = a total maze. Driven by tiers, add‑ons, metered dimensions, usage billing, and sales‑gating.
-   - **🤖 Agent easiness** — `100` = breezy to parse, `0` = a bot nightmare. Driven by fetchability, source format, and parse confidence.
+5. Two scores are computed from the tree by pure, deterministic functions (see [Scoring](#scoring)).
 6. Hit `100 / 100` and you get confetti. 🎉
+
+## Scoring
+
+Both scores are a transparent **points system**: every page starts at **100**, and each kind of complexity subtracts a fixed number of points. The exact line items are shown on every rating page under "How we scored it", and computed in [`api/src/lib/score.ts`](api/src/lib/score.ts).
+
+### 🧾 Pricing clarity — how easy the pricing is to understand
+
+| Rule | Points |
+| --- | --- |
+| Base score | `100` |
+| Each plan beyond the first | `−6` each (max `−30`) |
+| Usage‑based or hybrid billing | `−15` |
+| Each add‑on / extra package | `−4` each (max `−16`) |
+| Each hidden‑cost signal ("watch out") | `−6` each (max `−24`) |
+| Real price needs a sales call / calculator | `−10` |
+| **No public pricing shown at all** | fixed `−90` (→ score `10`) |
+
+Plain feature lists are **not** penalized — only structural complexity (plans, add‑ons, metered/usage billing, sales‑gating) is. A single clear flat plan scores `100`.
+
+### 🤖 Agent easiness — how easy the page was for the agent to read
+
+| Rule | Points |
+| --- | --- |
+| Base score | `100` |
+| Read from raw HTML (no markdown available) | `−15` |
+| No concrete pricing to parse | `−40` |
+| Pricing gated behind interaction | `−20` |
+| **Couldn't fetch the page at all** | fixed `−100` (→ score `0`) |
+
+Scores are clamped to `0–100`.
 
 Every rated page is permanently available at `rate-my-pricing/<slug>` and served from the cache.
 
