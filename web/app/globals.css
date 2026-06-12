@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/*
+  rate-my-pricing — a playful "indie web" theme.
+  Paper background, hard ink borders, candy accents, chunky shadows.
+  Deliberately NOT Neon- or Vercel-branded.
+*/
+
+:root {
+  --paper: #fdf6e8;
+  --paper-2: #fbeccb;
+  --ink: #1c1a17;
+  --ink-soft: #514b40;
+  --line: #1c1a17;
+
+  --coral: #ff5d57;
+  --marigold: #ffb22e;
+  --lime: #7bd640;
+  --sky: #4cc9f0;
+  --grape: #9b5de5;
+  --bubble: #ff8fab;
+
+  --shadow: 4px 4px 0 0 var(--ink);
+  --shadow-lg: 7px 7px 0 0 var(--ink);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-coral: var(--coral);
+  --color-marigold: var(--marigold);
+  --color-lime: var(--lime);
+  --color-sky: var(--sky);
+  --color-grape: var(--grape);
+  --color-bubble: var(--bubble);
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+html {
+  background-color: var(--paper);
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(255, 178, 46, 0.18), transparent 38%),
+    radial-gradient(circle at 88% 12%, rgba(76, 201, 240, 0.16), transparent 36%),
+    radial-gradient(circle at 78% 92%, rgba(155, 93, 229, 0.14), transparent 40%),
+    radial-gradient(circle at 20% 88%, rgba(123, 214, 64, 0.14), transparent 40%);
+  background-attachment: fixed;
+}
+
+/* faint dotted-grid paper texture */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgba(28, 26, 23, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
+
+@layer components {
+  .ink-border {
+    border: 3px solid var(--ink);
+  }
+  .card {
+    background: #fffdf7;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+  .card-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  .chip {
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    font-weight: 700;
+    padding: 0.2rem 0.7rem;
+    background: #fffdf7;
+    box-shadow: 2px 2px 0 0 var(--ink);
+  }
+  .btn-pop {
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    font-weight: 800;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .btn-pop:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 var(--ink);
+  }
+  .btn-pop:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 var(--ink);
+  }
+  .hover-pop {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  .hover-pop:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+}
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+.animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.animate-wobble { animation: wobble 2.5s ease-in-out infinite; }
+
+@keyframes blink {
+  0%, 70%, 100% { opacity: 1; }
+  85% { opacity: 0.15; }
+}
+.animate-blink { animation: blink 2.4s steps(1) infinite; }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 28s linear infinite; }

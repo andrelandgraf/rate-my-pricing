@@ -1,0 +1,17 @@
+# dependencies
+node_modules
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# build output
+.next
+dist
+drizzle/meta
+
+# misc
+.DS_Store
+*.log
+.vercel
