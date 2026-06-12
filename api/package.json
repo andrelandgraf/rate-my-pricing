@@ -13,6 +13,7 @@
     "@neondatabase/config": "^0.7.1",
     "@neondatabase/env": "^0.5.1",
     "@neondatabase/functions": "^0.1.2",
+    "@sentry/node": "^10.56.0",
     "ai": "^5.0.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.0",

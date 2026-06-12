@@ -1,3 +1,4 @@
+import { Sentry } from "./instrument";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -36,7 +37,20 @@ const app = new Hono();
 
 app.use("*", cors());
 
+// Report unhandled route errors to Sentry. cors() doesn't decorate error responses,
+// so set the permissive header here too.
+app.onError((err, c) => {
+  Sentry.captureException(err);
+  c.header("access-control-allow-origin", "*");
+  return c.json({ error: "internal_error" }, 500);
+});
+
 app.get("/", (c) => c.json({ service: "rate-my-pricing", status: "ok" }));
+
+// Temporary: throws so we can confirm errors reach Sentry. Removed after verification.
+app.get("/debug-sentry", () => {
+  throw new Error("rate-my-pricing function Sentry test");
+});
 
 const SORTS = {
   worst: asc(ratings.pricingScore),
