@@ -2,6 +2,7 @@ import { fetchPricingContent } from "./fetch";
 import { parsePricing, MODEL } from "./parse";
 import { pricingScore, agentScore } from "./score";
 import { normalizeUrl, slugFromUrl } from "./slug";
+import { Sentry } from "../instrument";
 import type { NewRatingRow } from "../db/schema";
 
 export type GeneratedRating = Omit<NewRatingRow, "id" | "createdAt" | "updatedAt" | "views">;
@@ -12,6 +13,13 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
   const slug = slugFromUrl(url);
 
   const fetched = await fetchPricingContent(url);
+  if (!fetched.ok) {
+    Sentry.captureMessage(`agent could not fetch pricing page: ${url}`, {
+      level: "warning",
+      tags: { component: "agent", phase: "fetch" },
+      extra: { url, status: fetched.status },
+    });
+  }
   const output = await parsePricing(fetched, url);
 
   const pricing = pricingScore(output);

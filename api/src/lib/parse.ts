@@ -1,5 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, type LanguageModel } from "ai";
+import { Sentry } from "../instrument";
 import { agentOutputSchema, type AgentOutput, type FetchResult } from "./types";
 
 export const MODEL = "gpt-5-mini";
@@ -83,9 +84,24 @@ export async function parsePricing(fetched: FetchResult, url: string): Promise<A
     } catch (err) {
       lastError = err;
       console.error(`[parse] model=${label} failed:`, err instanceof Error ? err.message : err);
+      // Recoverable per-attempt failure (a later model may succeed) → report as a warning.
+      Sentry.captureException(err, {
+        level: "warning",
+        tags: { component: "agent", phase: "parse-attempt", model: label },
+        extra: { url, source: fetched.source },
+      });
     }
   }
 
   console.error("[parse] all models failed", lastError);
+  // Every model failed — the agent produced no structured pricing. This is a real error.
+  Sentry.captureException(
+    lastError instanceof Error ? lastError : new Error("all parse models failed"),
+    {
+      level: "error",
+      tags: { component: "agent", phase: "parse-all-failed" },
+      extra: { url, source: fetched.source },
+    },
+  );
   return emptyOutput("The agent retrieved the page but could not reliably parse the pricing.");
 }
