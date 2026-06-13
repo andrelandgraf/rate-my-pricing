@@ -20,6 +20,34 @@ const db = drizzle(pool);
 const REGEN_AFTER_MS = 24 * 60 * 60 * 1000; // 1 day
 const RATE_LIMIT_PER_IP = Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 20);
 const RATE_LIMIT_GLOBAL = Number(process.env.RATE_LIMIT_GLOBAL_PER_HOUR ?? 300);
+const WEB_URL = (process.env.WEB_URL ?? "").replace(/\/+$/, "");
+
+/**
+ * Fire-and-forget: warm the freshly-rated page's social images so the first crawler
+ * (X/Slack/etc.) gets a CDN-cached PNG instantly instead of a cold Satori render.
+ * Fetches the page, extracts the exact og:image/twitter:image URLs, and requests them.
+ */
+function prewarmSocialImages(slug: string): void {
+  if (!WEB_URL) return;
+  void (async () => {
+    try {
+      const res = await fetch(`${WEB_URL}/${slug}`, {
+        headers: { "user-agent": "RateMyPricingPrewarm/1.0" },
+      });
+      const html = await res.text();
+      const urls = new Set<string>();
+      for (const m of html.matchAll(
+        /<meta (?:property|name)="(?:og:image|twitter:image)"[^>]*content="([^"]+)"/g,
+      )) {
+        if (m[1]) urls.add(m[1].replace(/&amp;/g, "&"));
+      }
+      await Promise.all([...urls].map((u) => fetch(u).catch(() => {})));
+      console.log(`[prewarm] ${slug}: warmed ${urls.size} social image(s)`);
+    } catch (err) {
+      console.error("[prewarm] failed:", err instanceof Error ? err.message : err);
+    }
+  })();
+}
 
 function clientIp(c: Context): string {
   const xff = c.req.header("x-forwarded-for");
@@ -183,6 +211,8 @@ app.post("/rate", async (c) => {
       },
     })
     .returning();
+
+  if (saved) prewarmSocialImages(saved.slug);
 
   return c.json({ cached: false, rating: saved });
 });

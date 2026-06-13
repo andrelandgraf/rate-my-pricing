@@ -165,6 +165,13 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         </div>
       </div>
     ),
-    { ...size, fonts: fonts.length ? fonts : undefined },
+    {
+      ...size,
+      fonts: fonts.length ? fonts : undefined,
+      // Make the rendered card CDN-cacheable so a single pre-warm serves every crawler instantly.
+      headers: {
+        "cache-control": "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800",
+      },
+    },
   );
 }
