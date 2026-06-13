@@ -75,6 +75,6 @@ export type RatingSummary = Pick<
   | "createdAt"
 >;
 
-export type SortKey = "category" | "worst" | "best" | "agent" | "recent";
+export type SortKey = "worst" | "best" | "agent" | "recent";
 
 export type RateResponse = { cached: boolean; rating: Rating };

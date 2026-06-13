@@ -4,12 +4,17 @@ export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "https://br-rough-smoke-w2hoayam-ratemypricing.compute.c-1.us-east-2.aws.neon.build";
 
-/** Server-side: fetch the leaderboard. Never cached so new submissions show up. */
-export async function fetchLeaderboard(sort: SortKey, limit = 60): Promise<RatingSummary[]> {
+/** Server-side: fetch the leaderboard, filtered by category. Never cached. */
+export async function fetchLeaderboard(
+  sort: SortKey,
+  category: string,
+  limit = 100,
+): Promise<RatingSummary[]> {
   try {
-    const res = await fetch(`${API_URL}/ratings?sort=${sort}&limit=${limit}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${API_URL}/ratings?sort=${sort}&category=${encodeURIComponent(category)}&limit=${limit}`,
+      { cache: "no-store" },
+    );
     if (!res.ok) return [];
     const data = (await res.json()) as { ratings: RatingSummary[] };
     return data.ratings ?? [];

@@ -3,7 +3,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { desc, asc, eq, sql } from "drizzle-orm";
+import { desc, asc, eq, and, sql } from "drizzle-orm";
+import { CATEGORIES } from "./lib/types";
 import { parseEnv } from "@neondatabase/env/v1";
 import config from "../neon";
 import { ratings, ratingHistory } from "./db/schema";
@@ -84,16 +85,7 @@ app.onError((err, c) => {
 
 app.get("/", (c) => c.json({ service: "rate-my-pricing", status: "ok" }));
 
-// Default landing order: DevTools → Clouds → AI Labs → Educational → Other.
-const categoryRank = sql`case ${ratings.category}
-  when 'devtools' then 0
-  when 'clouds' then 1
-  when 'ai-labs' then 2
-  when 'educational' then 3
-  else 4 end`;
-
 const SORTS = {
-  category: [categoryRank, desc(ratings.pricingScore)],
   // Worst offenders: least clear pricing first, ties broken by worst agent-easiness.
   worst: [asc(ratings.pricingScore), asc(ratings.agentScore)],
   best: [desc(ratings.pricingScore), desc(ratings.agentScore)],
@@ -109,6 +101,12 @@ app.get("/ratings", async (c) => {
   const sort: SortKey = sortParam && sortParam in SORTS ? (sortParam as SortKey) : "recent";
   const limit = Math.min(Number(c.req.query("limit") ?? 50) || 50, 100);
 
+  const categoryParam = c.req.query("category");
+  const where =
+    categoryParam && categoryParam !== "all" && (CATEGORIES as readonly string[]).includes(categoryParam)
+      ? and(eq(ratings.listed, true), eq(ratings.category, categoryParam))
+      : eq(ratings.listed, true);
+
   const rows = await db
     .select({
       slug: ratings.slug,
@@ -122,11 +120,11 @@ app.get("/ratings", async (c) => {
       createdAt: ratings.createdAt,
     })
     .from(ratings)
-    .where(eq(ratings.listed, true))
+    .where(where)
     .orderBy(...SORTS[sort])
     .limit(limit);
 
-  return c.json({ sort, ratings: rows });
+  return c.json({ sort, category: categoryParam ?? "all", ratings: rows });
 });
 
 app.get("/ratings/:slug", async (c) => {

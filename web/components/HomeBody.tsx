@@ -3,22 +3,19 @@
 import { useMemo, useState } from "react";
 import SubmitForm from "@/components/SubmitForm";
 import FilterTabs from "@/components/FilterTabs";
+import CategoryFilter from "@/components/CategoryFilter";
 import RatingCard from "@/components/RatingCard";
 import { hostOf } from "@/lib/format";
-import {
-  CATEGORY_ORDER,
-  CATEGORY_LABELS,
-  CATEGORY_EMOJI,
-  type RatingSummary,
-  type SortKey,
-} from "@/lib/types";
+import { CATEGORY_LABELS, type Category, type RatingSummary, type SortKey } from "@/lib/types";
 
 export default function HomeBody({
   ratings,
   sort,
+  category,
 }: {
   ratings: RatingSummary[];
   sort: SortKey;
+  category: string;
 }) {
   const [query, setQuery] = useState("");
 
@@ -29,6 +26,9 @@ export default function HomeBody({
       `${r.title} ${hostOf(r.url)} ${r.slug}`.toLowerCase().includes(q),
     );
   }, [ratings, q]);
+
+  const categoryLabel =
+    category === "all" ? "All" : (CATEGORY_LABELS[category as Category] ?? "DevTools");
 
   return (
     <>
@@ -56,57 +56,37 @@ export default function HomeBody({
       </section>
 
       <section className="mx-auto max-w-5xl px-4">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
-          <h2 className="font-display font-extrabold text-3xl">
-            {q ? (
-              <>
-                Matching <span className="text-coral">“{query.trim()}”</span>
-              </>
-            ) : (
-              "The leaderboard"
-            )}
-          </h2>
-          <div className={q ? "pointer-events-none opacity-40" : ""}>
-            <FilterTabs active={sort} />
-          </div>
+        <h2 className="font-display font-extrabold text-3xl mb-4">
+          {q ? (
+            <>
+              Matching <span className="text-coral">“{query.trim()}”</span>
+            </>
+          ) : (
+            <>
+              The <span className="text-coral">{categoryLabel}</span> leaderboard
+            </>
+          )}
+        </h2>
+
+        <div className="flex flex-col gap-2.5 mb-6">
+          <CategoryFilter active={category} sort={sort} />
+          <FilterTabs active={sort} category={category} />
         </div>
 
         {ratings.length === 0 ? (
           <div className="card card-lg p-10 text-center">
             <div className="text-5xl mb-3">🫙</div>
-            <p className="font-display font-bold text-xl">No ratings yet — be the first!</p>
-            <p className="text-ink-soft">Paste a pricing page above and watch the agent go.</p>
+            <p className="font-display font-bold text-xl">Nothing in {categoryLabel} yet</p>
+            <p className="text-ink-soft">Paste a pricing page above, or try another category.</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="card card-lg p-10 text-center">
             <div className="text-5xl mb-3">🔍</div>
-            <p className="font-display font-bold text-xl">
-              Nothing rated for “{query.trim()}” yet
-            </p>
+            <p className="font-display font-bold text-xl">No match for “{query.trim()}”</p>
             <p className="text-ink-soft">
-              Hit <span className="font-semibold">Rate it!</span> above to score it.
+              Hit <span className="font-semibold">Rate it!</span> above to score it, or switch
+              category.
             </p>
-          </div>
-        ) : sort === "category" && !q ? (
-          <div className="flex flex-col gap-8">
-            {CATEGORY_ORDER.map((cat) => {
-              const items = filtered.filter((r) => r.category === cat);
-              if (items.length === 0) return null;
-              return (
-                <div key={cat}>
-                  <h3 className="font-display font-extrabold text-xl mb-3 flex items-center gap-2">
-                    <span>{CATEGORY_EMOJI[cat]}</span>
-                    {CATEGORY_LABELS[cat]}
-                    <span className="chip bg-paper-2 text-xs">{items.length}</span>
-                  </h3>
-                  <div className="grid gap-3">
-                    {items.map((r, i) => (
-                      <RatingCard key={r.slug} rating={r} rank={i} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
           </div>
         ) : (
           <div className="grid gap-3">
