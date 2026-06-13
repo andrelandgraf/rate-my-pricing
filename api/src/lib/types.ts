@@ -58,11 +58,23 @@ export type ParseMeta = z.infer<typeof parseMetaSchema>;
  * No sentiment, no judgment, no "hidden cost signals" — those are derived in step 2 from this
  * clean structure, so injected prose in the raw page can't influence the rating.
  */
+export const usageDimensionSchema = z.object({
+  name: z.string().describe("What is metered, e.g. 'Errors', 'Bandwidth', 'Seats', 'Build minutes'."),
+  unit: z.string().describe("The billing unit, e.g. 'per GB', 'per 1k requests', 'per seat/mo'."),
+  price: z.string().describe("Price per unit as shown, e.g. '$0.50', '$0.0003625'. '' if unknown."),
+  included: z.string().describe("Amount included before charges begin, e.g. '5k/mo'. '' if none/unknown."),
+});
+
+export type UsageDimension = z.infer<typeof usageDimensionSchema>;
+
 export const extractionSchema = z.object({
-  productName: z.string().describe("Product or company name, as literally shown."),
+  productName: z.string().describe("Brand/company name (e.g. 'Stripe'), NEVER a heading like 'Pricing'."),
   currency: z.string().describe("Currency symbol/code, e.g. '$', 'USD', '' if unknown."),
   tiers: z.array(tierSchema).describe("Each plan/tier literally listed, with its real prices."),
   addOns: z.array(addOnSchema).describe("Add-ons / additional paid packages literally listed."),
+  usageDimensions: z
+    .array(usageDimensionSchema)
+    .describe("Metered / pay-as-you-go billing axes. Empty if pricing is purely flat/tiered."),
   foundPricing: z.boolean().describe("True only if concrete prices are actually present."),
   requiresInteraction: z
     .boolean()
@@ -99,19 +111,18 @@ export const agentOutputSchema = z.object({
 
 export type AgentOutput = z.infer<typeof agentOutputSchema> & { raw: Extraction };
 
-export const CATEGORIES = ["devtools", "clouds", "ai-labs", "educational", "other"] as const;
+export const CATEGORIES = ["devtools", "clouds", "ai-labs", "saas", "educational", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const categorizationSchema = z.object({
   category: z
     .enum(CATEGORIES)
     .describe(
-      "The single best-fit category for this product: " +
-        "devtools (developer tools, APIs, SDKs, infra, observability, databases, payments/auth for builders), " +
-        "clouds (general-purpose cloud platforms / hyperscalers like AWS, Google Cloud, Azure), " +
-        "ai-labs (foundation-model providers like OpenAI, Anthropic, Mistral), " +
-        "educational (courses, bootcamps, learning platforms), " +
-        "other (anything that doesn't clearly fit the above).",
+      "The single best-fit category: devtools (developer tools & platforms builders build with or " +
+        "deploy to), clouds (hyperscalers / broad data platforms: AWS, GCP, Azure, Snowflake, " +
+        "Databricks), ai-labs (foundation-model providers only: OpenAI, Anthropic, Mistral), saas " +
+        "(general business/consumer apps not aimed at developers: link-in-bio, productivity, CRM, " +
+        "newsletters), educational (courses, bootcamps, learning), other (none of the above).",
     ),
 });
 

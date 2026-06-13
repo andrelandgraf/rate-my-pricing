@@ -5,7 +5,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScoreGauge from "@/components/ScoreGauge";
 import PricingTreeView from "@/components/PricingTreeView";
+import PricingTreeGraph from "@/components/PricingTreeGraph";
 import ScoreBreakdown from "@/components/ScoreBreakdown";
+import { buildPricingTree } from "@/lib/pricingTree";
 import RegenerateButton from "@/components/RegenerateButton";
 import ShareButton from "@/components/ShareButton";
 import Confetti from "@/components/Confetti";
@@ -45,6 +47,7 @@ export default async function RatingPage({
   if (!rating) notFound();
 
   const perfect = rating.pricingScore === 100 && rating.agentScore === 100;
+  const pricingTree = buildPricingTree(rating.rawExtraction, rating.tree);
 
   return (
     <>
@@ -129,6 +132,12 @@ export default async function RatingPage({
               pricingScore={rating.pricingScore}
               agentScore={rating.agentScore}
             />
+          </section>
+        )}
+
+        {pricingTree && (
+          <section className="mx-auto max-w-5xl px-4 pt-10">
+            <PricingTreeGraph root={pricingTree} />
           </section>
         )}
 

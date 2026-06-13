@@ -2,7 +2,17 @@ import { fetchPricingContent } from "./fetch";
 import { parsePricing, MODEL } from "./parse";
 import { categorize } from "./categorize";
 import { pricingScore, agentScore } from "./score";
-import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl } from "./slug";
+import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl, prettyHostName } from "./slug";
+
+// Reject generic page headings the parser sometimes returns as a product name.
+const GENERIC_TITLE =
+  /^\s*(pricing|plans?|pricing\s*(&|and|\+)?\s*plans?|plans?\s*(&|and)\s*pricing|our\s+pricing|pricing\s+page|subscriptions?|packages?|pricing\s+plans?)\s*$/i;
+
+function deriveTitle(productName: string | undefined, host: string): string {
+  const name = (productName ?? "").trim();
+  if (!name || name === "Unknown" || GENERIC_TITLE.test(name)) return prettyHostName(host);
+  return name;
+}
 import type { NewRatingRow } from "../db/schema";
 
 export type GeneratedRating = Omit<NewRatingRow, "id" | "createdAt" | "updatedAt" | "views">;
@@ -39,10 +49,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
   const pricing = pricingScore(output);
   const agent = agentScore(fetched, output);
 
-  const title =
-    output.tree.productName && output.tree.productName !== "Unknown"
-      ? output.tree.productName
-      : host;
+  const title = deriveTitle(output.tree.productName, host);
 
   const category = await categorize({ title, host, summary: output.tree.notes });
 

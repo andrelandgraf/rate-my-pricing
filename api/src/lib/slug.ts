@@ -22,6 +22,29 @@ export function hostFromUrl(normalized: string): string {
   return new URL(normalized).hostname.toLowerCase().replace(/^www\./, "");
 }
 
+const MULTIPART_TLDS = new Set([
+  "co.uk", "com.au", "co.jp", "com.br", "co.in", "com.mx", "co.nz", "com.sg",
+]);
+
+/**
+ * A human-friendly brand name derived from a host, used as a title fallback when the parser
+ * couldn't find a real product/company name (e.g. it returned "Pricing"). Picks the registrable
+ * label (e.g. cloud.google.com -> "Google", datadoghq.com -> "Datadoghq").
+ */
+export function prettyHostName(host: string): string {
+  const clean = host.toLowerCase().replace(/^www\./, "");
+  const parts = clean.split(".");
+  let main: string;
+  if (parts.length >= 3 && MULTIPART_TLDS.has(parts.slice(-2).join("."))) {
+    main = parts[parts.length - 3] ?? clean;
+  } else if (parts.length >= 2) {
+    main = parts[parts.length - 2] ?? clean;
+  } else {
+    main = clean;
+  }
+  return main.charAt(0).toUpperCase() + main.slice(1);
+}
+
 /** True when the URL is just a host with no meaningful path (e.g. https://hey.com/). */
 export function isBareHostUrl(normalized: string): boolean {
   const { pathname } = new URL(normalized);

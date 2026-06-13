@@ -1,6 +1,6 @@
 import type { Agent } from "@mastra/core/agent";
 import { mastra } from "../mastra";
-import { PRIMARY_MODEL } from "../mastra/agents/pricing";
+import { EXTRACTOR_MODEL, EXTRACTOR_FALLBACK_MODEL } from "../mastra/agents/pricing";
 import { Sentry } from "../instrument";
 import {
   extractionSchema,
@@ -11,14 +11,14 @@ import {
   type FetchResult,
 } from "./types";
 
-export const MODEL = PRIMARY_MODEL;
+export const MODEL = EXTRACTOR_MODEL;
 
-const EXTRACT_TIMEOUT_MS = 60_000;
-const ANALYZE_TIMEOUT_MS = 30_000;
+const EXTRACT_TIMEOUT_MS = 90_000;
+const ANALYZE_TIMEOUT_MS = 45_000;
 
 const EXTRACTORS: { label: string; agent: Agent }[] = [
-  { label: PRIMARY_MODEL, agent: mastra.getAgent("extractorPrimary") },
-  { label: "claude-haiku-4-5", agent: mastra.getAgent("extractorFallback") },
+  { label: EXTRACTOR_MODEL, agent: mastra.getAgent("extractorPrimary") },
+  { label: EXTRACTOR_FALLBACK_MODEL, agent: mastra.getAgent("extractorFallback") },
 ];
 
 const emptyExtraction = (): Extraction => ({
@@ -26,6 +26,7 @@ const emptyExtraction = (): Extraction => ({
   currency: "",
   tiers: [],
   addOns: [],
+  usageDimensions: [],
   foundPricing: false,
   requiresInteraction: false,
 });
@@ -93,6 +94,7 @@ async function analyze(extraction: Extraction): Promise<Analysis> {
             currency: extraction.currency,
             tiers: extraction.tiers,
             addOns: extraction.addOns,
+            usageDimensions: extraction.usageDimensions,
             requiresInteraction: extraction.requiresInteraction,
           },
           null,
