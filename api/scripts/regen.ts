@@ -53,6 +53,7 @@ async function worker() {
           source: row.source,
           model: row.model,
           fetchOk: row.fetchOk,
+          listed: row.listed,
           parseNotes: row.parseNotes,
           updatedAt: new Date(),
         })
