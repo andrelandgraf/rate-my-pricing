@@ -28,6 +28,9 @@ export const ratings = pgTable(
     source: text("source").notNull(),
     model: text("model").notNull().default(""),
     fetchOk: boolean("fetch_ok").notNull().default(true),
+    // Pages with no concrete pricing are still cached + viewable by direct link, but hidden
+    // from the leaderboard.
+    listed: boolean("listed").notNull().default(true),
     parseNotes: text("parse_notes").notNull().default(""),
     views: integer("views").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -35,6 +38,7 @@ export const ratings = pgTable(
   },
   (table) => ({
     hostIdx: index("ratings_host_idx").on(table.host),
+    listedIdx: index("ratings_listed_idx").on(table.listed),
     pricingScoreIdx: index("ratings_pricing_score_idx").on(table.pricingScore),
     agentScoreIdx: index("ratings_agent_score_idx").on(table.agentScore),
     createdAtIdx: index("ratings_created_at_idx").on(table.createdAt),

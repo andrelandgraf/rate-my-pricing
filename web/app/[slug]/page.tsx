@@ -68,6 +68,9 @@ export default async function RatingPage({
                   </span>
                   <span className="chip bg-paper-2 text-sm">🕑 {timeAgo(rating.createdAt)}</span>
                   {perfect && <span className="chip bg-lime text-sm animate-wobble">🎉 perfect score</span>}
+                  {!rating.listed && (
+                    <span className="chip bg-coral/30 text-sm">🚫 no public pricing · unlisted</span>
+                  )}
                 </div>
                 <h1 className="font-display font-extrabold text-4xl sm:text-5xl leading-[0.95] tracking-tight break-words">
                   {rating.title}

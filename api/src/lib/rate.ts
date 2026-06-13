@@ -61,6 +61,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       source: fetched.source,
       model: MODEL,
       fetchOk: fetched.ok,
+      listed: output.meta.foundPricing,
       parseNotes: output.meta.foundPricing
         ? ""
         : "No concrete pricing was found on the page.",

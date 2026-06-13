@@ -103,6 +103,7 @@ app.get("/ratings", async (c) => {
       createdAt: ratings.createdAt,
     })
     .from(ratings)
+    .where(eq(ratings.listed, true))
     .orderBy(...SORTS[sort])
     .limit(limit);
 
@@ -209,6 +210,7 @@ app.post("/rate", async (c) => {
     source: row.source,
     model: row.model,
     fetchOk: row.fetchOk,
+    listed: row.listed,
     parseNotes: row.parseNotes,
     updatedAt: new Date(),
   };

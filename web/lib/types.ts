@@ -37,6 +37,7 @@ export type Rating = {
   source: "markdown" | "html" | "none";
   model: string;
   fetchOk: boolean;
+  listed: boolean;
   parseNotes: string;
   views: number;
   createdAt: string;
