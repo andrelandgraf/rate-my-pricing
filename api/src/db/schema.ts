@@ -9,7 +9,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { PricingTree } from "../lib/types";
+import type { PricingTree, Extraction } from "../lib/types";
 import type { Breakdown } from "../lib/score";
 
 export const ratings = pgTable(
@@ -26,6 +26,8 @@ export const ratings = pgTable(
     agentScore: integer("agent_score").notNull(),
     tree: jsonb("tree").$type<PricingTree>().notNull(),
     breakdown: jsonb("breakdown").$type<Breakdown>(),
+    // Clean, injection-free facts from the extractor (step 1) — for trend analysis over time.
+    rawExtraction: jsonb("raw_extraction").$type<Extraction>(),
     source: text("source").notNull(),
     model: text("model").notNull().default(""),
     fetchOk: boolean("fetch_ok").notNull().default(true),
@@ -67,6 +69,7 @@ export const ratingHistory = pgTable(
     agentScore: integer("agent_score").notNull(),
     tree: jsonb("tree").$type<PricingTree>(),
     breakdown: jsonb("breakdown").$type<Breakdown>(),
+    rawExtraction: jsonb("raw_extraction").$type<Extraction>(),
     source: text("source").notNull().default(""),
     model: text("model").notNull().default(""),
     fetchOk: boolean("fetch_ok").notNull().default(true),

@@ -1,6 +1,6 @@
 import { Mastra } from "@mastra/core/mastra";
 import { Observability, MastraPlatformExporter } from "@mastra/observability";
-import { pricingPrimary, pricingFallback, categorizer } from "./agents/pricing";
+import { extractorPrimary, extractorFallback, analyst, categorizer } from "./agents/pricing";
 
 // MastraPlatformExporter reads MASTRA_PLATFORM_ACCESS_TOKEN + MASTRA_PROJECT_ID from the env.
 // Only wire observability once both are present (Observability requires >=1 exporter), so the
@@ -21,6 +21,6 @@ const observability = platformReady
   : undefined;
 
 export const mastra = new Mastra({
-  agents: { pricingPrimary, pricingFallback, categorizer },
+  agents: { extractorPrimary, extractorFallback, analyst, categorizer },
   ...(observability ? { observability } : {}),
 });

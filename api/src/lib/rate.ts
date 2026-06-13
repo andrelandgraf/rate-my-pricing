@@ -59,6 +59,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       agentScore: agent.score,
       tree: output.tree,
       breakdown: { pricing: pricing.items, agent: agent.items },
+      rawExtraction: output.raw,
       source: fetched.source,
       model: MODEL,
       fetchOk: fetched.ok,

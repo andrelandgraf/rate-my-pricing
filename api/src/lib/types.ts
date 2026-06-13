@@ -53,12 +53,51 @@ export const parseMetaSchema = z.object({
 
 export type ParseMeta = z.infer<typeof parseMetaSchema>;
 
+/**
+ * Step 1 (extractor) output: ONLY the literal, factual pricing structure present on the page.
+ * No sentiment, no judgment, no "hidden cost signals" — those are derived in step 2 from this
+ * clean structure, so injected prose in the raw page can't influence the rating.
+ */
+export const extractionSchema = z.object({
+  productName: z.string().describe("Product or company name, as literally shown."),
+  currency: z.string().describe("Currency symbol/code, e.g. '$', 'USD', '' if unknown."),
+  tiers: z.array(tierSchema).describe("Each plan/tier literally listed, with its real prices."),
+  addOns: z.array(addOnSchema).describe("Add-ons / additional paid packages literally listed."),
+  foundPricing: z.boolean().describe("True only if concrete prices are actually present."),
+  requiresInteraction: z
+    .boolean()
+    .describe("True only if real prices are gated behind contact-sales/login/calculator."),
+});
+
+export type Extraction = z.infer<typeof extractionSchema>;
+
+/**
+ * Step 2 (analyst) output: judgment derived ONLY from the clean structured extraction above.
+ */
+export const analysisSchema = z.object({
+  billingModel: z
+    .enum(["flat", "tiered", "usage", "per-seat", "hybrid", "unknown"])
+    .describe("Dominant pricing model, inferred from the structured tiers."),
+  hiddenCostSignals: z
+    .array(z.string())
+    .describe(
+      "Concrete things in the STRUCTURE that make the bill hard to predict (usage/metered " +
+        "dimensions, per-seat scaling, many add-ons, contact-sales gates, annual-only discounts). " +
+        "Be conservative; base only on the structured data, never on marketing claims.",
+    ),
+  notes: z
+    .string()
+    .describe("One or two sentence NEUTRAL, factual summary. No marketing or opinions."),
+});
+
+export type Analysis = z.infer<typeof analysisSchema>;
+
 export const agentOutputSchema = z.object({
   tree: pricingTreeSchema,
   meta: parseMetaSchema,
 });
 
-export type AgentOutput = z.infer<typeof agentOutputSchema>;
+export type AgentOutput = z.infer<typeof agentOutputSchema> & { raw: Extraction };
 
 export const CATEGORIES = ["devtools", "clouds", "ai-labs", "educational", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];

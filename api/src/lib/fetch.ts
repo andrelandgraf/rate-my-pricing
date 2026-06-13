@@ -92,9 +92,22 @@ export async function fetchPricingContent(normalizedUrl: string): Promise<FetchR
   };
 }
 
+// Defense-in-depth against prompt/output injection: neutralize text that mimics OUR output
+// schema (a page can embed a ready-made "answer" hoping the model copies it) or tries to
+// address/instruct the rating agent. The model is also hardened, and the analyst never sees raw
+// content — this just removes the obvious copy-paste bait.
+const INJECTION_TOKENS =
+  /"(hiddenCostSignals|foundPricing|requiresInteraction|billingModel|pricingScore|agentScore)"\s*:/gi;
+const INJECTION_DIRECTIVES =
+  /\b(ignore (all |the )?(previous|above) instructions|rating agent|you (must|should) (rate|score)|system prompt)\b/gi;
+
+function sanitize(content: string): string {
+  return content
+    .replace(INJECTION_TOKENS, '"_redacted_":')
+    .replace(INJECTION_DIRECTIVES, "[removed]");
+}
+
 function clamp(result: FetchResult): FetchResult {
-  if (result.content.length > MAX_CHARS) {
-    return { ...result, content: result.content.slice(0, MAX_CHARS) };
-  }
-  return result;
+  const content = sanitize(result.content);
+  return { ...result, content: content.length > MAX_CHARS ? content.slice(0, MAX_CHARS) : content };
 }
