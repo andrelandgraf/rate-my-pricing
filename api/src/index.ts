@@ -48,10 +48,11 @@ app.onError((err, c) => {
 app.get("/", (c) => c.json({ service: "rate-my-pricing", status: "ok" }));
 
 const SORTS = {
-  worst: asc(ratings.pricingScore),
-  best: desc(ratings.pricingScore),
-  agent: desc(ratings.agentScore),
-  recent: desc(ratings.createdAt),
+  worst: [asc(ratings.pricingScore), desc(ratings.agentScore)],
+  best: [desc(ratings.pricingScore), desc(ratings.agentScore)],
+  // Best for agents: highest agent-easiness first, ties broken by pricing clarity.
+  agent: [desc(ratings.agentScore), desc(ratings.pricingScore)],
+  recent: [desc(ratings.createdAt)],
 } as const;
 
 type SortKey = keyof typeof SORTS;
@@ -73,7 +74,7 @@ app.get("/ratings", async (c) => {
       createdAt: ratings.createdAt,
     })
     .from(ratings)
-    .orderBy(SORTS[sort])
+    .orderBy(...SORTS[sort])
     .limit(limit);
 
   return c.json({ sort, ratings: rows });
