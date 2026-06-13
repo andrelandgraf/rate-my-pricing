@@ -97,7 +97,7 @@ export default async function Image() {
             gap: 36,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, height: "100%", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, height: "100%", justifyContent: "center", gap: 30 }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div
                 style={{
@@ -115,7 +115,7 @@ export default async function Image() {
               >
                 the pricing-page roast machine
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", fontSize: 92, fontWeight: 800, color: INK, marginTop: 30, fontFamily: displayFamily, lineHeight: 1.02 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", fontSize: 74, fontWeight: 800, color: INK, marginTop: 24, fontFamily: displayFamily, lineHeight: 1.04 }}>
                 <span style={{ display: "flex" }}>How&nbsp;</span>
                 <span style={{ display: "flex", color: CORAL }}>confusing</span>
                 <span style={{ display: "flex" }}>&nbsp;is that pricing page?</span>
