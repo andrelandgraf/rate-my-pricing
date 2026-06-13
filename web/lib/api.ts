@@ -4,35 +4,44 @@ export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "https://br-rough-smoke-w2hoayam-ratemypricing.compute.c-1.us-east-2.aws.neon.build";
 
-/** Server-side: fetch the leaderboard, filtered by category. Never cached. */
+/**
+ * Server-side: fetch the leaderboard, filtered by category. Never cached.
+ * Returns `null` when the API is unreachable/erroring (so the UI can show a maintenance
+ * state instead of a misleading "empty leaderboard"); an empty array means genuinely no entries.
+ */
 export async function fetchLeaderboard(
   sort: SortKey,
   category: string,
   limit = 100,
-): Promise<RatingSummary[]> {
+): Promise<RatingSummary[] | null> {
   try {
     const res = await fetch(
       `${API_URL}/ratings?sort=${sort}&category=${encodeURIComponent(category)}&limit=${limit}`,
       { cache: "no-store" },
     );
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const data = (await res.json()) as { ratings: RatingSummary[] };
     return data.ratings ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 
-/** Server-side: fetch a single rating by slug. */
-export async function fetchRating(slug: string): Promise<Rating | null> {
+/**
+ * Server-side: fetch a single rating by slug. Returns the rating, `null` when it genuinely
+ * doesn't exist (404), or `"unreachable"` when the API is down (so the page can show maintenance
+ * instead of a misleading "not found").
+ */
+export async function fetchRating(slug: string): Promise<Rating | "unreachable" | null> {
   try {
     const res = await fetch(`${API_URL}/ratings/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (res.status === 404) return null;
+    if (!res.ok) return "unreachable";
     return (await res.json()) as Rating;
   } catch {
-    return null;
+    return "unreachable";
   }
 }
 

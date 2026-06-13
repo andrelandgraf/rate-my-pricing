@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import HomeBody from "@/components/HomeBody";
+import Maintenance from "@/components/Maintenance";
 import { fetchLeaderboard } from "@/lib/api";
 import { CATEGORY_ORDER, type SortKey } from "@/lib/types";
 
@@ -27,7 +28,11 @@ export default async function Home({
     <>
       <Header />
       <main className="flex-1">
-        <HomeBody ratings={ratings} sort={sort} category={category} />
+        {ratings === null ? (
+          <Maintenance />
+        ) : (
+          <HomeBody ratings={ratings} sort={sort} category={category} />
+        )}
       </main>
       <Footer />
     </>

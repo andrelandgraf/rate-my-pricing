@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Maintenance from "@/components/Maintenance";
 import ScoreGauge from "@/components/ScoreGauge";
 import PricingTreeView from "@/components/PricingTreeView";
 import PricingTreeGraph from "@/components/PricingTreeGraph";
@@ -25,7 +26,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const rating = await fetchRating(slug);
-  if (!rating) return { title: "Not found · Rate My Pricing" };
+  if (!rating || rating === "unreachable") {
+    return { title: rating === "unreachable" ? "Rate My Pricing" : "Not found · Rate My Pricing" };
+  }
   const title = `${rating.title} — pricing ${rating.pricingScore}/100 · Rate My Pricing`;
   const description =
     rating.summary ||
@@ -45,6 +48,17 @@ export default async function RatingPage({
 }) {
   const { slug } = await params;
   const rating = await fetchRating(slug);
+  if (rating === "unreachable") {
+    return (
+      <>
+        <Header />
+        <main className="flex-1">
+          <Maintenance />
+        </main>
+        <Footer />
+      </>
+    );
+  }
   if (!rating) notFound();
 
   const perfect = rating.pricingScore === 100 && rating.agentScore === 100;
