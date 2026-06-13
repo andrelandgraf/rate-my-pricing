@@ -235,7 +235,11 @@ export function pricingScore(
  * could we fetch it, was it clean markdown or messy HTML, did we find real pricing,
  * and was the price gated behind interaction.
  */
-export function agentScore(fetched: FetchResult, output: AgentOutput): ScoreResult {
+export function agentScore(
+  fetched: FetchResult,
+  output: AgentOutput,
+  opts: { scattered?: boolean } = {},
+): ScoreResult {
   if (!fetched.ok || fetched.source === "none") {
     return {
       score: 0,
@@ -263,6 +267,11 @@ export function agentScore(fetched: FetchResult, output: AgentOutput): ScoreResu
 
   if (fetched.truncated) {
     items.push({ label: "Pricing page too large to read in full", points: -20 });
+  }
+
+  // The real rates weren't on the pricing page itself — we had to dig into docs/linked pages.
+  if (opts.scattered) {
+    items.push({ label: "Real pricing isn't on the pricing page (scattered across pages)", points: -20 });
   }
 
   if (output.meta.requiresInteraction) {

@@ -1,4 +1,5 @@
-import { resolvePricingContent } from "./discover";
+import { resolvePricingContent, deeperPricingCandidates } from "./discover";
+import { fetchPricingContent } from "./fetch";
 import { extract, analyze, buildOutput, MODEL } from "./parse";
 import { categorize } from "./categorize";
 import { pricingScore, agentScore, concretePriceCount, extractionPriceCount } from "./score";
@@ -58,23 +59,63 @@ export async function generateRating(
   // poor agent experience and should be marked down, not rescued.
   let bestExtraction = cheapExtraction;
   let pricingFetched = cheapFetched;
+  // True when the real rates weren't on the landed pricing page — we had to dig deeper. Drives an
+  // AGENT-EASINESS penalty (a self-contained pricing page is a better agent experience).
+  let scattered = false;
+
+  // Fetch a URL markdown-first, then render with Firecrawl if that read looks thin; return the
+  // richer extraction.
+  const readBest = async (target: string): Promise<{ extraction: typeof cheapExtraction; fetched: FetchResult }> => {
+    const f = await fetchPricingContent(target);
+    let e = await extract(f, target);
+    let chosen = f;
+    if (firecrawlEnabled() && (f.truncated || extractionPriceCount(e) < 3)) {
+      const md = await firecrawlMarkdown(target);
+      if (md) {
+        const truncated = md.length > RENDER_MAX_CHARS;
+        const rendered: FetchResult = {
+          ok: true, status: 200, source: "markdown",
+          content: truncated ? md.slice(0, RENDER_MAX_CHARS) : md, finalUrl: target, truncated,
+        };
+        const e2 = await extract(rendered, target);
+        if (extractionPriceCount(e2) > extractionPriceCount(e)) {
+          e = e2;
+          chosen = rendered;
+        }
+      }
+    }
+    return { extraction: e, fetched: chosen };
+  };
+
+  // 1. Render the landed pricing page fully if the cheap read looks partial.
   if (firecrawlEnabled() && (cheapFetched.truncated || extractionPriceCount(cheapExtraction) < 3)) {
     const md = await firecrawlMarkdown(url);
     if (md) {
       const truncated = md.length > RENDER_MAX_CHARS;
       const rendered: FetchResult = {
-        ok: true,
-        status: 200,
-        source: "markdown",
-        content: truncated ? md.slice(0, RENDER_MAX_CHARS) : md,
-        finalUrl: url,
-        truncated,
+        ok: true, status: 200, source: "markdown",
+        content: truncated ? md.slice(0, RENDER_MAX_CHARS) : md, finalUrl: url, truncated,
       };
       const reExtracted = await extract(rendered, url);
       if (extractionPriceCount(reExtracted) > extractionPriceCount(cheapExtraction)) {
         bestExtraction = reExtracted;
         pricingFetched = rendered;
-        console.log(`[agent] firecrawl render improved extraction for ${url}`);
+      }
+    }
+  }
+
+  // 2. Still thin? The pricing page may just link out to the real rates (docs/"learn more").
+  //    Follow deeper pricing pages for CLARITY; mark `scattered` so AGENT EASINESS reflects that
+  //    the rates weren't on the pricing page itself.
+  if (extractionPriceCount(bestExtraction) < 3) {
+    const candidates = deeperPricingCandidates(pricingFetched.content || cheapFetched.content, url);
+    for (const candidate of candidates.slice(0, 3)) {
+      const { extraction: e, fetched: f } = await readBest(candidate);
+      if (extractionPriceCount(e) > extractionPriceCount(bestExtraction)) {
+        bestExtraction = e;
+        pricingFetched = f;
+        scattered = true;
+        if (extractionPriceCount(e) >= 5) break;
       }
     }
   }
@@ -90,7 +131,7 @@ export async function generateRating(
   const cheapOutput = buildOutput(cheapExtraction, analysis, title);
 
   const pricing = pricingScore(output, category, pricingFetched);
-  const agent = agentScore(cheapFetched, cheapOutput);
+  const agent = agentScore(cheapFetched, cheapOutput, { scattered });
 
   // Only list entries where we actually mapped genuine prices (not marketing blurbs).
   const hasPrices = concretePriceCount(output) > 0;

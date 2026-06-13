@@ -122,6 +122,28 @@ async function explorerPick(host: string, candidates: string[]): Promise<string 
   }
 }
 
+/**
+ * When a pricing page is just a marketing shell that links out to the real rates (e.g. a
+ * "Learn more" → /docs/about/pricing), find those deeper pricing pages: pricing-ish links in the
+ * page content + conventional docs-pricing paths. Used to chase the complete pricing picture.
+ */
+export function deeperPricingCandidates(content: string, currentUrl: string): string[] {
+  const origin = new URL(currentUrl).origin;
+  const out: string[] = [];
+  for (const m of content.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)) {
+    const text = m[1] ?? "";
+    const url = m[2] ?? "";
+    if (PRICING_RE.test(text) || PRICING_RE.test(url)) {
+      const a = abs(url, origin);
+      if (a) out.push(a);
+    }
+  }
+  for (const p of ["/docs/about/pricing", "/docs/pricing", "/pricing/details", "/pricing/detail"]) {
+    out.push(`${origin}${p}`);
+  }
+  return rankCandidates([...new Set(out)].filter((u) => u.replace(/\/$/, "") !== currentUrl.replace(/\/$/, "")));
+}
+
 export type Resolution = { url: string; fetched: FetchResult; via: string };
 
 /**
