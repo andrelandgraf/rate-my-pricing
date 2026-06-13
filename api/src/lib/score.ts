@@ -54,16 +54,16 @@ type PricingWeights = {
 };
 
 const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
-  devtools: { tiers: 1.0, options: 0.8, usage: 0.5, addOns: 0.9, interaction: 0.85 },
-  paas: { tiers: 1.0, options: 0.7, usage: 0.5, addOns: 0.85, interaction: 0.8 },
-  "ai-lab": { tiers: 0.9, options: 0.7, usage: 0.4, addOns: 0.85, interaction: 0.8 },
-  saas: { tiers: 1.0, options: 1.0, usage: 0.6, addOns: 1.0, interaction: 1.0 },
-  educational: { tiers: 1.0, options: 1.1, usage: 1.5, addOns: 1.0, interaction: 1.1 },
+  devtools: { tiers: 1.0, options: 0.8, usage: 0.65, addOns: 0.9, interaction: 0.85 },
+  paas: { tiers: 1.0, options: 0.7, usage: 0.6, addOns: 0.85, interaction: 0.8 },
+  "ai-lab": { tiers: 0.9, options: 0.7, usage: 0.45, addOns: 0.85, interaction: 0.8 },
+  saas: { tiers: 1.0, options: 1.0, usage: 0.8, addOns: 1.0, interaction: 1.0 },
+  educational: { tiers: 1.0, options: 1.1, usage: 1.6, addOns: 1.0, interaction: 1.1 },
   other: { tiers: 1.0, options: 1.0, usage: 1.0, addOns: 1.0, interaction: 1.0 },
 };
 
 // "Normal" baselines that exist on most clear pricing pages — only complexity BEYOND these counts.
-const BASELINE = { plans: 3, options: 4, addOns: 2, meters: 3 };
+const BASELINE = { plans: 3, options: 3, addOns: 1, meters: 2 };
 
 const isFreePrice = (p?: string): boolean => /^(free|\$?0)$/i.test((p ?? "").trim());
 
@@ -148,7 +148,7 @@ export function pricingScore(
   // eases comparison — softer penalty when one is present.
   const extraTiers = Math.max(0, tree.tiers.length - BASELINE.plans);
   if (extraTiers > 0) {
-    const base = Math.min(24, extraTiers * 6) * (hasFreeTier ? 0.6 : 1);
+    const base = Math.min(28, extraTiers * 7) * (hasFreeTier ? 0.6 : 1);
     pushBreadth({ label: `${tree.tiers.length} plans to compare`, points: deduct(base, w.tiers) });
   }
 
@@ -166,7 +166,7 @@ export function pricingScore(
   if (extraAddOns > 0) {
     pushBreadth({
       label: `${tree.addOns.length} add-ons / extras`,
-      points: deduct(Math.min(16, extraAddOns * 4), w.addOns),
+      points: deduct(Math.min(18, extraAddOns * 4), w.addOns),
     });
   }
 
@@ -174,7 +174,7 @@ export function pricingScore(
   // beyond a baseline, and lightly outside education.
   const excessMeters = Math.max(0, meters - BASELINE.meters);
   if (excessMeters > 0) {
-    const pts = deduct(Math.min(28, excessMeters * 3), w.usage);
+    const pts = deduct(Math.min(40, excessMeters * 3), w.usage);
     if (pts < 0) complexity.push({ label: `${meters} metered dimensions to track`, points: pts });
   }
 
@@ -187,7 +187,7 @@ export function pricingScore(
   if (mechanisms.length >= 2) {
     complexity.push({
       label: `Mixes ${mechanisms.join(" + ")} pricing`,
-      points: deduct((mechanisms.length - 1) * 9, w.usage),
+      points: deduct((mechanisms.length - 1) * 12, w.usage),
     });
   }
 
@@ -227,7 +227,7 @@ export function pricingScore(
   // Forgive ONLY the breadth-driven complexity in proportion to scope (intrinsic per-component
   // complexity — metering, hidden costs — is never hand-waved away by "they have many services").
   // Partial relief — # of plans still counts (we don't fully forgive breadth just for scope).
-  let reliefFactor = Math.min(0.45, 1 - 1 / Math.sqrt(services));
+  let reliefFactor = Math.min(0.4, 1 - 1 / Math.sqrt(services));
   if (truncated) reliefFactor *= 0.5; // less sure we captured everything
   const credit = Math.round(breadthMagnitude * reliefFactor);
   if (credit > 0) {
