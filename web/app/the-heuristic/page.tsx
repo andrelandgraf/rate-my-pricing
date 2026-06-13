@@ -38,7 +38,7 @@ const STEPS: {
     name: "The Librarian",
     model: "GPT-5",
     body:
-      "Looks at the whole page to name the company and file it into one shelf: DevTools, PaaS, Hyperscaler, AI Lab, SaaS, or Education. The category sets the expectations the scorer judges against.",
+      "Looks at the whole page to name the company and file it into one shelf: DevTools, PaaS, AI Lab, SaaS, or Education. The category sets the expectations the scorer judges against.",
   },
   {
     n: 4,

@@ -56,7 +56,6 @@ type PricingWeights = {
 const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
   devtools: { tiers: 1.0, options: 0.8, usage: 0.5, addOns: 0.9, interaction: 0.85 },
   paas: { tiers: 1.0, options: 0.7, usage: 0.5, addOns: 0.85, interaction: 0.8 },
-  hyperscaler: { tiers: 1.0, options: 0.8, usage: 0.6, addOns: 0.9, interaction: 0.85 },
   "ai-lab": { tiers: 0.9, options: 0.7, usage: 0.4, addOns: 0.85, interaction: 0.8 },
   saas: { tiers: 1.0, options: 1.0, usage: 0.6, addOns: 1.0, interaction: 1.0 },
   educational: { tiers: 1.0, options: 1.1, usage: 1.5, addOns: 1.0, interaction: 1.1 },

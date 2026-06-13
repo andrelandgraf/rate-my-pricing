@@ -142,7 +142,6 @@ export type AgentOutput = z.infer<typeof agentOutputSchema> & { raw: Extraction 
 export const CATEGORIES = [
   "devtools",
   "paas",
-  "hyperscaler",
   "ai-lab",
   "saas",
   "educational",
@@ -164,11 +163,10 @@ export const categorizationSchema = z.object({
         "pricing). devtools: tools, APIs, and services developers use WHILE building or operating " +
         "software but do not deploy their app onto (observability/monitoring, CI/CD, testing, code " +
         "intelligence, auth/identity, payments, API/SDK utilities). paas: a platform developers " +
-        "deploy their applications or data ONTO — a focused set of runtime/hosting/database/backend " +
-        "primitives that run your code or data. hyperscaler: a broad infrastructure platform " +
-        "offering MANY heterogeneous, independently-purchasable primitives (compute, storage, " +
-        "networking, databases, security, edge, …), billed largely by usage; defined by breadth of " +
-        "distinct services. ai-lab: the core product is a frontier/foundation AI model the company " +
+        "deploy their applications or data ONTO, or broad infrastructure they build on — " +
+        "runtime/hosting/database/backend/edge/compute/storage/networking primitives that run your " +
+        "code or data (from a focused platform to a broad multi-service cloud). ai-lab: the core " +
+        "product is a frontier/foundation AI model the company " +
         "trains and serves, billed mainly per token/inference (not an AI app or AI dev framework). " +
         "saas: general business or consumer software applications used by end users, not primarily " +
         "developers (productivity, collaboration, marketing, CRM, content, communication). " +

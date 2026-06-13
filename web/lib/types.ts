@@ -1,7 +1,6 @@
 export const CATEGORY_ORDER = [
   "devtools",
   "paas",
-  "hyperscaler",
   "ai-lab",
   "saas",
   "educational",
@@ -11,7 +10,6 @@ export type Category = (typeof CATEGORY_ORDER)[number];
 export const CATEGORY_LABELS: Record<Category, string> = {
   devtools: "DevTools",
   paas: "PaaS",
-  hyperscaler: "Hyperscalers",
   "ai-lab": "AI Labs",
   saas: "SaaS",
   educational: "Educational",
@@ -20,7 +18,6 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 export const CATEGORY_EMOJI: Record<Category, string> = {
   devtools: "🛠️",
   paas: "🚀",
-  hyperscaler: "☁️",
   "ai-lab": "🧪",
   saas: "💼",
   educational: "🎓",

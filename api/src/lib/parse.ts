@@ -48,8 +48,7 @@ function buildExtractPrompt(fetched: FetchResult, url: string): string {
 // How usage/metered billing should be framed in the analyst's summary, per category norm.
 const USAGE_NORM: Record<Category, string> = {
   devtools: "Usage/metered billing is common here — don't over-flag it; weigh it against scope.",
-  paas: "Usage/metered billing is standard for deploy platforms — expected, not a red flag.",
-  hyperscaler: "Usage billing is the norm; broad scope is expected — judge complexity per service.",
+  paas: "Usage/metered billing is standard for platforms & infra — expected, not a red flag.",
   "ai-lab": "Token/usage billing is fundamental here — treat it as completely normal.",
   saas: "Usage/metered billing is unusual for end-user SaaS (flat/per-seat is the norm) — note it.",
   educational: "Usage/metered billing is a red flag here — courses should be flat or one-time.",

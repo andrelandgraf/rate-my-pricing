@@ -114,11 +114,9 @@ const CATEGORIZER_INSTRUCTIONS = [
   "• devtools — tools, APIs, and services developers use WHILE building or operating software but do",
   "  NOT deploy their own app onto: observability/monitoring, CI/CD, testing, code intelligence,",
   "  auth/identity, payments, API/SDK utilities.",
-  "• paas — a platform developers deploy their applications or data ONTO: a focused set of",
-  "  runtime/hosting/database/backend primitives that run your code or data for you.",
-  "• hyperscaler — a broad infrastructure platform offering MANY heterogeneous, independently",
-  "  purchasable primitives (compute, storage, networking, databases, security, edge, …), billed",
-  "  largely by usage. Defined by BREADTH of distinct services, not by company size.",
+  "• paas — a platform developers deploy their applications or data ONTO, or broad infrastructure",
+  "  they build on: runtime/hosting/database/backend/edge/compute/storage/networking primitives",
+  "  that run your code or data — from a focused platform to a broad multi-service cloud.",
   "• ai-lab — the core product is a frontier/foundation AI model the company trains and serves,",
   "  billed mainly per token/inference. An AI application or AI developer framework is NOT an ai-lab.",
   "• saas — general business or consumer software applications used by end users, not primarily",
@@ -126,10 +124,8 @@ const CATEGORIZER_INSTRUCTIONS = [
   "• educational — courses, bootcamps, tutorials, certifications, and learning platforms.",
   "• other — none of the above.",
   "",
-  "Tie-breakers: deploy-your-app-onto-it → paas; use-it-while-building (don't deploy onto it) →",
-  "devtools; many heterogeneous independent infra primitives → hyperscaler; a focused deployment",
-  "target with few cohesive primitives → paas; sells its own model → ai-lab; end-user application →",
-  "saas. The deciding line between paas and hyperscaler is the breadth of distinct primitives.",
+  "Tie-breakers: deploy-your-app-onto-it or build-on-its-infra → paas; use-it-while-building (don't",
+  "deploy onto it) → devtools; sells its own model → ai-lab; end-user application → saas.",
 ].join("\n");
 
 function makeAgent(id: string, instructions: string, modelId: string): Agent {
