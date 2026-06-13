@@ -4,6 +4,8 @@ import { extract, analyze, buildOutput, MODEL } from "./parse";
 import { categorize } from "./categorize";
 import { pricingScore, agentScore, concretePriceCount, extractionPriceCount } from "./score";
 import { firecrawlEnabled, firecrawlMarkdown } from "./firecrawl";
+import { judgeRating } from "./judge";
+import { Sentry } from "../instrument";
 import { normalizeUrl, slugFromUrl, hostFromUrl, prettyHostName } from "./slug";
 import type { FetchResult } from "./types";
 
@@ -135,12 +137,43 @@ export async function generateRating(
 
   // Only list entries where we actually mapped genuine prices (not marketing blurbs).
   const hasPrices = concretePriceCount(output) > 0;
-  const listed = output.meta.foundPricing && hasPrices;
-  const parseNotes = !output.meta.foundPricing
+  let listed = output.meta.foundPricing && hasPrices;
+  let parseNotes = !output.meta.foundPricing
     ? "No concrete pricing was found on the page."
     : !hasPrices
       ? "The agent couldn't read this page's real pricing (it may be rendered client-side)."
       : "";
+
+  // QA judge gate — catch regressions (wrong page/company, missing details, inconsistencies)
+  // before publishing. A clear FAIL unlists + flags; a WARN is logged for observability.
+  const verdict = await judgeRating({
+    submittedUrl: submitted,
+    resolvedUrl: url,
+    title,
+    category,
+    tree: output.tree,
+    meters: bestExtraction.usageDimensions.filter((d) => d.price?.trim()).length,
+    pricingScore: pricing.score,
+    agentScore: agent.score,
+    listed,
+    source: cheapFetched.source,
+    content: pricingFetched.content,
+  });
+  if (verdict.verdict === "fail") {
+    listed = false;
+    parseNotes = `Flagged in review: ${verdict.issues.join("; ")}`.slice(0, 280) || parseNotes;
+    Sentry.captureMessage(`[judge] FAIL ${url}`, {
+      level: "warning",
+      tags: { component: "judge" },
+      extra: { submitted, url, issues: verdict.issues },
+    });
+  } else if (verdict.verdict === "warn" && verdict.issues.length) {
+    Sentry.captureMessage(`[judge] WARN ${url}`, {
+      level: "info",
+      tags: { component: "judge" },
+      extra: { url, issues: verdict.issues },
+    });
+  }
 
   return {
     slug,

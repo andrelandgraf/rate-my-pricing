@@ -191,6 +191,20 @@ export const explorerSchema = z.object({
 
 export type ExplorerChoice = z.infer<typeof explorerSchema>;
 
+/** Judge gate: QA the final result to catch wrong-page / missing-detail / inconsistent regressions. */
+export const judgeSchema = z.object({
+  verdict: z
+    .enum(["pass", "warn", "fail"])
+    .describe(
+      "pass = result looks correct; warn = minor issue or possibly-incomplete pricing; " +
+        "fail = clearly wrong (rated a non-pricing/blog page, wrong company for the URL, or marked " +
+        "as having pricing while no real prices exist).",
+    ),
+  issues: z.array(z.string()).describe("Short, specific problems found. Empty when pass."),
+});
+
+export type JudgeVerdict = z.infer<typeof judgeSchema>;
+
 export type FetchResult = {
   ok: boolean;
   status: number;
