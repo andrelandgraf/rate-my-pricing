@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.0",
+    "@mastra/core": "^1.41.0",
+    "@mastra/observability": "^1.14.1",
     "@neondatabase/config": "^0.7.1",
     "@neondatabase/env": "^0.5.1",
     "@neondatabase/functions": "^0.1.2",

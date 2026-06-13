@@ -7,6 +7,16 @@ export default defineConfig({
       ratemypricing: {
         name: "rate-my-pricing api",
         source: "src/index.ts",
+        // Neon-managed vars (DATABASE_URL, OPENAI_*, AI Gateway) are injected automatically.
+        // Only third-party / custom env is declared here, resolved from process.env at deploy
+        // time (load with `neonctl deploy --env .env.deploy`).
+        env: {
+          SENTRY_DSN: process.env.SENTRY_DSN ?? "",
+          RATE_LIMIT_PER_IP_PER_HOUR: process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? "20",
+          RATE_LIMIT_GLOBAL_PER_HOUR: process.env.RATE_LIMIT_GLOBAL_PER_HOUR ?? "300",
+          MASTRA_PROJECT_ID: process.env.MASTRA_PROJECT_ID ?? "",
+          MASTRA_PLATFORM_ACCESS_TOKEN: process.env.MASTRA_PLATFORM_ACCESS_TOKEN ?? "",
+        },
       },
     },
   },

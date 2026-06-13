@@ -2,6 +2,9 @@ node_modules
 .env
 .env.local
 .env.*.local
+.env.deploy
+.mastra
+.mastra-project.json
 dist
 drizzle/meta
 .DS_Store
