@@ -17,7 +17,7 @@ export default async function Home({
   const params = await searchParams;
   const sort: SortKey = SORTS.includes(params.sort as SortKey)
     ? (params.sort as SortKey)
-    : "recent";
+    : "best";
   const category =
     params.category && CATEGORIES.includes(params.category) ? params.category : "devtools";
 
