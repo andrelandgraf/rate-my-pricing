@@ -130,19 +130,27 @@ export default async function RatingPage({
                 </div>
               </div>
 
-              <div className="flex gap-6 sm:gap-10 shrink-0">
-                <ScoreGauge
-                  score={rating.pricingScore}
-                  label="Pricing clarity"
-                  caption={pricingLabel(rating.pricingScore)}
-                  emoji="🧾"
-                />
-                <ScoreGauge
-                  score={rating.agentScore}
-                  label="Agent easiness"
-                  caption={agentLabel(rating.agentScore)}
-                  emoji="🤖"
-                />
+              <div className="flex flex-col items-center gap-3 shrink-0">
+                <div className="flex gap-6 sm:gap-10">
+                  <ScoreGauge
+                    score={rating.pricingScore}
+                    label="Pricing clarity"
+                    caption={pricingLabel(rating.pricingScore)}
+                    emoji="🧾"
+                  />
+                  <ScoreGauge
+                    score={rating.agentScore}
+                    label="Agent easiness"
+                    caption={agentLabel(rating.agentScore)}
+                    emoji="🤖"
+                  />
+                </div>
+                <Link
+                  href="/the-heuristic"
+                  className="chip bg-paper-2 text-xs hover:bg-sky transition-colors"
+                >
+                  📐 how these scores work
+                </Link>
               </div>
             </div>
           </div>
