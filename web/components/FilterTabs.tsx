@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { SortKey } from "@/lib/types";
 
 const TABS: { key: SortKey; label: string; emoji: string }[] = [
+  { key: "category", label: "By category", emoji: "🗂️" },
   { key: "worst", label: "Worst offenders", emoji: "💀" },
   { key: "best", label: "Best pricing", emoji: "🏆" },
   { key: "agent", label: "Best for agents", emoji: "🤖" },
@@ -16,7 +17,7 @@ export default function FilterTabs({ active }: { active: SortKey }) {
         return (
           <Link
             key={tab.key}
-            href={tab.key === "recent" ? "/" : `/?sort=${tab.key}`}
+            href={tab.key === "category" ? "/" : `/?sort=${tab.key}`}
             scroll={false}
             className={`chip text-sm transition-colors ${
               isActive ? "bg-ink text-paper" : "hover:bg-marigold"

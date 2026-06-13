@@ -60,6 +60,24 @@ export const agentOutputSchema = z.object({
 
 export type AgentOutput = z.infer<typeof agentOutputSchema>;
 
+export const CATEGORIES = ["devtools", "clouds", "ai-labs", "educational", "other"] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export const categorizationSchema = z.object({
+  category: z
+    .enum(CATEGORIES)
+    .describe(
+      "The single best-fit category for this product: " +
+        "devtools (developer tools, APIs, SDKs, infra, observability, databases, payments/auth for builders), " +
+        "clouds (general-purpose cloud platforms / hyperscalers like AWS, Google Cloud, Azure), " +
+        "ai-labs (foundation-model providers like OpenAI, Anthropic, Mistral), " +
+        "educational (courses, bootcamps, learning platforms), " +
+        "other (anything that doesn't clearly fit the above).",
+    ),
+});
+
+export type Categorization = z.infer<typeof categorizationSchema>;
+
 export type FetchResult = {
   ok: boolean;
   status: number;

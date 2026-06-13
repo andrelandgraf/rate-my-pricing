@@ -1,5 +1,6 @@
 import { fetchPricingContent } from "./fetch";
 import { parsePricing, MODEL } from "./parse";
+import { categorize } from "./categorize";
 import { pricingScore, agentScore } from "./score";
 import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl } from "./slug";
 import type { NewRatingRow } from "../db/schema";
@@ -43,6 +44,8 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       ? output.tree.productName
       : host;
 
+  const category = await categorize({ title, host, summary: output.tree.notes });
+
   return {
     slug,
     row: {
@@ -50,6 +53,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       host,
       url,
       title,
+      category,
       summary: output.tree.notes,
       pricingScore: pricing.score,
       agentScore: agent.score,

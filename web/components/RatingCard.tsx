@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { RatingSummary } from "@/lib/types";
 import { hostOf, timeAgo } from "@/lib/format";
+import { CATEGORY_EMOJI } from "@/lib/types";
 import ScorePill from "./ScorePill";
 
 const ACCENTS = ["bg-marigold", "bg-sky", "bg-lime", "bg-bubble", "bg-grape", "bg-coral"];
@@ -22,7 +23,7 @@ export default function RatingCard({ rating, rank }: { rating: RatingSummary; ra
           {rating.title}
         </div>
         <div className="text-sm text-ink-soft font-mono truncate">
-          {hostOf(rating.url)} · {timeAgo(rating.createdAt)}
+          {CATEGORY_EMOJI[rating.category]} {hostOf(rating.url)} · {timeAgo(rating.createdAt)}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">

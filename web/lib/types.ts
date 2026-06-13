@@ -1,3 +1,20 @@
+export const CATEGORY_ORDER = ["devtools", "clouds", "ai-labs", "educational", "other"] as const;
+export type Category = (typeof CATEGORY_ORDER)[number];
+export const CATEGORY_LABELS: Record<Category, string> = {
+  devtools: "DevTools",
+  clouds: "Clouds",
+  "ai-labs": "AI Labs",
+  educational: "Educational",
+  other: "Other",
+};
+export const CATEGORY_EMOJI: Record<Category, string> = {
+  devtools: "🛠️",
+  clouds: "☁️",
+  "ai-labs": "🧪",
+  educational: "🎓",
+  other: "📦",
+};
+
 export type Limit = { label: string; value: string };
 
 export type Tier = {
@@ -30,6 +47,7 @@ export type Rating = {
   url: string;
   title: string;
   summary: string;
+  category: Category;
   pricingScore: number;
   agentScore: number;
   tree: PricingTree;
@@ -46,9 +64,17 @@ export type Rating = {
 
 export type RatingSummary = Pick<
   Rating,
-  "slug" | "url" | "title" | "summary" | "pricingScore" | "agentScore" | "source" | "createdAt"
+  | "slug"
+  | "url"
+  | "title"
+  | "summary"
+  | "category"
+  | "pricingScore"
+  | "agentScore"
+  | "source"
+  | "createdAt"
 >;
 
-export type SortKey = "worst" | "best" | "agent" | "recent";
+export type SortKey = "category" | "worst" | "best" | "agent" | "recent";
 
 export type RateResponse = { cached: boolean; rating: Rating };

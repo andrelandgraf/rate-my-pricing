@@ -75,7 +75,16 @@ app.onError((err, c) => {
 
 app.get("/", (c) => c.json({ service: "rate-my-pricing", status: "ok" }));
 
+// Default landing order: DevTools → Clouds → AI Labs → Educational → Other.
+const categoryRank = sql`case ${ratings.category}
+  when 'devtools' then 0
+  when 'clouds' then 1
+  when 'ai-labs' then 2
+  when 'educational' then 3
+  else 4 end`;
+
 const SORTS = {
+  category: [categoryRank, desc(ratings.pricingScore)],
   // Worst offenders: least clear pricing first, ties broken by worst agent-easiness.
   worst: [asc(ratings.pricingScore), asc(ratings.agentScore)],
   best: [desc(ratings.pricingScore), desc(ratings.agentScore)],
@@ -97,6 +106,7 @@ app.get("/ratings", async (c) => {
       url: ratings.url,
       title: ratings.title,
       summary: ratings.summary,
+      category: ratings.category,
       pricingScore: ratings.pricingScore,
       agentScore: ratings.agentScore,
       source: ratings.source,
@@ -221,6 +231,7 @@ app.post("/rate", async (c) => {
     url: row.url,
     title: row.title,
     summary: row.summary,
+    category: row.category,
     pricingScore: row.pricingScore,
     agentScore: row.agentScore,
     tree: row.tree,
@@ -256,6 +267,7 @@ app.post("/rate", async (c) => {
       host: saved.host,
       url: saved.url,
       title: saved.title,
+      category: saved.category,
       pricingScore: saved.pricingScore,
       agentScore: saved.agentScore,
       tree: saved.tree,

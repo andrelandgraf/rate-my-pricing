@@ -36,3 +36,16 @@ export const FALLBACK_MODEL = "claude-haiku-4-5";
 
 export const pricingPrimary = makePricingAgent("pricing-analyst", PRIMARY_MODEL);
 export const pricingFallback = makePricingAgent("pricing-analyst-fallback", FALLBACK_MODEL);
+
+export const categorizer = new Agent({
+  id: "categorizer",
+  name: "categorizer",
+  instructions:
+    "You classify a software/SaaS product into exactly one category. Consider the product " +
+    "name, domain, and pricing summary. Choose the single best fit and nothing else.",
+  model: {
+    id: `neon/${PRIMARY_MODEL}`,
+    url: gatewayUrl,
+    apiKey: env.aiGateway.apiKey,
+  },
+});

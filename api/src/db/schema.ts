@@ -21,6 +21,7 @@ export const ratings = pgTable(
     url: text("url").notNull(),
     title: text("title").notNull(),
     summary: text("summary").notNull().default(""),
+    category: text("category").notNull().default("other"),
     pricingScore: integer("pricing_score").notNull(),
     agentScore: integer("agent_score").notNull(),
     tree: jsonb("tree").$type<PricingTree>().notNull(),
@@ -39,6 +40,7 @@ export const ratings = pgTable(
   (table) => ({
     hostIdx: index("ratings_host_idx").on(table.host),
     listedIdx: index("ratings_listed_idx").on(table.listed),
+    categoryIdx: index("ratings_category_idx").on(table.category),
     pricingScoreIdx: index("ratings_pricing_score_idx").on(table.pricingScore),
     agentScoreIdx: index("ratings_agent_score_idx").on(table.agentScore),
     createdAtIdx: index("ratings_created_at_idx").on(table.createdAt),
@@ -60,6 +62,7 @@ export const ratingHistory = pgTable(
     host: text("host").notNull().default(""),
     url: text("url").notNull(),
     title: text("title").notNull().default(""),
+    category: text("category").notNull().default("other"),
     pricingScore: integer("pricing_score").notNull(),
     agentScore: integer("agent_score").notNull(),
     tree: jsonb("tree").$type<PricingTree>(),

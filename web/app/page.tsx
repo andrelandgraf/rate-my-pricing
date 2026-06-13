@@ -6,7 +6,7 @@ import type { SortKey } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const SORTS: SortKey[] = ["worst", "best", "agent", "recent"];
+const SORTS: SortKey[] = ["category", "worst", "best", "agent", "recent"];
 
 export default async function Home({
   searchParams,
@@ -16,7 +16,7 @@ export default async function Home({
   const params = await searchParams;
   const sort: SortKey = SORTS.includes(params.sort as SortKey)
     ? (params.sort as SortKey)
-    : "recent";
+    : "category";
 
   const ratings = await fetchLeaderboard(sort);
 
