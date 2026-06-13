@@ -7,7 +7,6 @@ export const alt = "Rate My Pricing — how confusing is that pricing page?";
 const PAPER = "#fdf6e8";
 const CARD = "#fffdf7";
 const INK = "#1c1a17";
-const INK_SOFT = "#514b40";
 const CORAL = "#ff5d57";
 const GREEN = "#16a34a";
 const TRACK = "rgba(28,26,23,0.12)";
@@ -116,13 +115,10 @@ export default async function Image() {
               >
                 the pricing-page roast machine
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", fontSize: 76, fontWeight: 800, color: INK, marginTop: 26, fontFamily: displayFamily, lineHeight: 1.02 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", fontSize: 92, fontWeight: 800, color: INK, marginTop: 30, fontFamily: displayFamily, lineHeight: 1.02 }}>
                 <span style={{ display: "flex" }}>How&nbsp;</span>
                 <span style={{ display: "flex", color: CORAL }}>confusing</span>
                 <span style={{ display: "flex" }}>&nbsp;is that pricing page?</span>
-              </div>
-              <div style={{ display: "flex", fontSize: 27, color: INK_SOFT, marginTop: 22, maxWidth: 600, lineHeight: 1.3 }}>
-                Paste a URL. An AI agent reads it and scores how clear the pricing is — like Lighthouse, but for pricing pages.
               </div>
             </div>
             <div style={{ display: "flex", fontSize: 24, fontWeight: 700, color: INK }}>ratemypricing.vercel.app</div>
