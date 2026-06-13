@@ -107,7 +107,7 @@ type SortKey = keyof typeof SORTS;
 app.get("/ratings", async (c) => {
   const sortParam = c.req.query("sort");
   const sort: SortKey = sortParam && sortParam in SORTS ? (sortParam as SortKey) : "recent";
-  const limit = Math.min(Number(c.req.query("limit") ?? 50) || 50, 100);
+  const limit = Math.min(Number(c.req.query("limit") ?? 50) || 50, 300);
 
   const categoryParam = c.req.query("category");
   const where =

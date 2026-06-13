@@ -38,12 +38,19 @@ export default function HomeBody({
   }
 
   const q = query.trim().toLowerCase();
+
+  // No search → the selected category. Searching → match across ALL categories (so typing a name
+  // surfaces it even when you're parked on a different filter).
+  const inCategory = useMemo(
+    () => (category === "all" ? ratings : ratings.filter((r) => r.category === category)),
+    [ratings, category],
+  );
   const filtered = useMemo(() => {
-    if (!q) return ratings;
+    if (!q) return inCategory;
     return ratings.filter((r) =>
       `${r.title} ${hostOf(r.url)} ${r.slug}`.toLowerCase().includes(q),
     );
-  }, [ratings, q]);
+  }, [ratings, inCategory, q]);
 
   const categoryLabel =
     category === "all" ? "All" : (CATEGORY_LABELS[category as Category] ?? "DevTools");
@@ -77,7 +84,8 @@ export default function HomeBody({
         <h2 className="font-display font-extrabold text-3xl mb-4">
           {q ? (
             <>
-              Matching <span className="text-coral">“{query.trim()}”</span>
+              Matching <span className="text-coral">“{query.trim()}”</span>{" "}
+              <span className="text-base font-medium text-ink-soft">· across all categories</span>
             </>
           ) : (
             <>
@@ -86,31 +94,31 @@ export default function HomeBody({
           )}
         </h2>
 
-        <div className="flex flex-col gap-2.5 mb-6">
+        <div className={`flex flex-col gap-2.5 mb-6 ${q ? "opacity-50" : ""}`}>
           <CategoryFilter active={category} sort={sort} />
           <FilterTabs active={sort} category={category} />
         </div>
 
-        {ratings.length === 0 ? (
-          <div className="card card-lg p-10 text-center">
-            <div className="text-5xl mb-3">🫙</div>
-            <p className="font-display font-bold text-xl">Nothing in {categoryLabel} yet</p>
-            <p className="text-ink-soft">Paste a pricing page above, or try another category.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="card card-lg p-10 text-center">
-            <div className="text-5xl mb-3">🔍</div>
-            <p className="font-display font-bold text-xl">No match for “{query.trim()}”</p>
-            <p className="text-ink-soft">
-              Hit <span className="font-semibold">Rate it!</span> above to score it, or switch
-              category.
-            </p>
-          </div>
-        ) : (
+        {filtered.length > 0 ? (
           <div className="grid gap-3">
             {filtered.map((r, i) => (
               <RatingCard key={r.slug} rating={r} rank={i} />
             ))}
+          </div>
+        ) : q ? (
+          <div className="card card-lg p-10 text-center">
+            <div className="text-5xl mb-3">🔍</div>
+            <p className="font-display font-bold text-xl">No match for “{query.trim()}”</p>
+            <p className="text-ink-soft">
+              Nothing rated yet matches that — hit <span className="font-semibold">Rate it!</span>{" "}
+              above to score it.
+            </p>
+          </div>
+        ) : (
+          <div className="card card-lg p-10 text-center">
+            <div className="text-5xl mb-3">🫙</div>
+            <p className="font-display font-bold text-xl">Nothing in {categoryLabel} yet</p>
+            <p className="text-ink-soft">Paste a pricing page above, or try another category.</p>
           </div>
         )}
       </section>

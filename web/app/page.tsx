@@ -23,7 +23,9 @@ export default async function Home({
   const category =
     params.category && CATEGORIES.includes(params.category) ? params.category : "devtools";
 
-  const ratings = await fetchLeaderboard(sort, category);
+  // Fetch the full listed set (sorted) so search can match across ALL categories; HomeBody
+  // applies the selected category client-side when not searching.
+  const ratings = await fetchLeaderboard(sort, "all", 300);
 
   return (
     <>
