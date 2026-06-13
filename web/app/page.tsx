@@ -30,11 +30,12 @@ export default async function Home({
           <div className="inline-block chip bg-marigold mb-5 animate-float-slow">
             👀 the pricing-page roast machine
           </div>
-          <h1 className="font-display font-extrabold text-5xl sm:text-6xl leading-[0.95] tracking-tight">
+          <h1 className="font-display font-extrabold text-[2.6rem] sm:text-6xl leading-[0.98] sm:leading-[0.95] tracking-tight text-balance">
             How <span className="text-coral">confusing</span> is
-            <br /> that <span className="underline decoration-wavy decoration-sky">pricing page</span>?
+            <br className="hidden sm:inline" /> that{" "}
+            <span className="underline decoration-wavy decoration-sky">pricing page</span>?
           </h1>
-          <p className="mt-5 text-lg text-ink-soft font-medium max-w-xl mx-auto">
+          <p className="mt-5 text-base sm:text-lg text-ink-soft font-medium max-w-xl mx-auto">
             Paste any pricing URL. An AI agent reads it, untangles the tiers, and hands out two
             scores — like Lighthouse, but for pricing pages.
           </p>
