@@ -64,7 +64,9 @@ const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
 };
 
 // "Normal" baselines that exist on most clear pricing pages — only complexity BEYOND these counts.
-const BASELINE = { plans: 4, options: 4, addOns: 3, meters: 4 };
+const BASELINE = { plans: 3, options: 4, addOns: 2, meters: 3 };
+
+const isFreePrice = (p?: string): boolean => /^(free|\$?0)$/i.test((p ?? "").trim());
 
 const isPaidPrice = (p?: string): boolean => {
   const s = (p ?? "").trim();
@@ -134,20 +136,24 @@ export function pricingScore(
     breadthMagnitude += -line.points;
   };
 
-  // Plans beyond a normal handful.
-  const extraTiers = Math.max(0, tree.tiers.length - BASELINE.plans);
-  if (extraTiers > 0) {
-    pushBreadth({
-      label: `${tree.tiers.length} plans to compare`,
-      points: deduct(Math.min(24, extraTiers * 5), w.tiers),
-    });
-  }
-
-  // Nested in-plan choices (machine sizes, regions, …) beyond a few.
+  // Counts used across signals.
+  const meters = raw.usageDimensions.filter((d) => isRealPrice(d.price)).length;
+  const paidTiers = tree.tiers.filter((t) => isPaidPrice(t.price)).length;
+  const hasFreeTier = tree.tiers.some((t) => isFreePrice(t.price));
   const optionChoices = tree.tiers.reduce(
     (sum, t) => sum + (t.options ?? []).reduce((s, g) => s + g.choices.length, 0),
     0,
   );
+
+  // Plans beyond a normal handful (baseline 3). A free tier is a trivial yes/no branch, so it
+  // eases comparison — softer penalty when one is present.
+  const extraTiers = Math.max(0, tree.tiers.length - BASELINE.plans);
+  if (extraTiers > 0) {
+    const base = Math.min(24, extraTiers * 6) * (hasFreeTier ? 0.6 : 1);
+    pushBreadth({ label: `${tree.tiers.length} plans to compare`, points: deduct(base, w.tiers) });
+  }
+
+  // Nested in-plan choices (machine sizes, regions, …) beyond a few.
   const extraOptions = Math.max(0, optionChoices - BASELINE.options);
   if (extraOptions > 0) {
     pushBreadth({
@@ -156,7 +162,7 @@ export function pricingScore(
     });
   }
 
-  // Add-ons beyond a few.
+  // Add-ons beyond a couple.
   const extraAddOns = Math.max(0, tree.addOns.length - BASELINE.addOns);
   if (extraAddOns > 0) {
     pushBreadth({
@@ -165,21 +171,32 @@ export function pricingScore(
     });
   }
 
-  // Metered billing is NOT penalized for existing — only the complexity of MANY metered dimensions
+  // Metered billing isn't penalized for existing — only the complexity of MANY metered dimensions
   // beyond a baseline, and lightly outside education.
-  const meters = raw.usageDimensions.filter((d) => isRealPrice(d.price)).length;
   const excessMeters = Math.max(0, meters - BASELINE.meters);
   if (excessMeters > 0) {
-    const pts = deduct(Math.min(30, excessMeters * 3), w.usage);
+    const pts = deduct(Math.min(28, excessMeters * 3), w.usage);
     if (pts < 0) complexity.push({ label: `${meters} metered dimensions to track`, points: pts });
+  }
+
+  // Mixed pricing models — pure flat OR pure usage is clear; COMBINING fixed plans + usage +
+  // add-ons means computing base + variable across axes, which is genuinely harder to predict.
+  const mechanisms: string[] = [];
+  if (paidTiers >= 1) mechanisms.push("fixed plans");
+  if (meters >= 1) mechanisms.push("usage");
+  if (tree.addOns.length >= 1) mechanisms.push("add-ons");
+  if (mechanisms.length >= 2) {
+    complexity.push({
+      label: `Mixes ${mechanisms.join(" + ")} pricing`,
+      points: deduct((mechanisms.length - 1) * 9, w.usage),
+    });
   }
 
   // The sales wall — dominant negative. If there's no self-serve PAID price anywhere (only Free
   // and/or "contact sales"), you can't know what you'll pay without a sales call. A contact-sales
   // Enterprise tier sitting ON TOP of real self-serve pricing is normal and barely dings.
-  let selfServePaid = 0;
+  let selfServePaid = paidTiers;
   for (const t of tree.tiers) {
-    if (isPaidPrice(t.price)) selfServePaid++;
     for (const g of t.options ?? []) for (const c of g.choices) if (isPaidPrice(c.price)) selfServePaid++;
   }
   for (const d of raw.usageDimensions) if (isPaidPrice(d.price)) selfServePaid++;
@@ -210,7 +227,8 @@ export function pricingScore(
 
   // Forgive ONLY the breadth-driven complexity in proportion to scope (intrinsic per-component
   // complexity — metering, hidden costs — is never hand-waved away by "they have many services").
-  let reliefFactor = Math.min(0.6, 1 - 1 / Math.sqrt(services));
+  // Partial relief — # of plans still counts (we don't fully forgive breadth just for scope).
+  let reliefFactor = Math.min(0.45, 1 - 1 / Math.sqrt(services));
   if (truncated) reliefFactor *= 0.5; // less sure we captured everything
   const credit = Math.round(breadthMagnitude * reliefFactor);
   if (credit > 0) {

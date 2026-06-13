@@ -104,10 +104,10 @@ export async function generateRating(
     }
   }
 
-  // 2. Still thin? The pricing page may just link out to the real rates (docs/"learn more").
-  //    Follow deeper pricing pages for CLARITY; mark `scattered` so AGENT EASINESS reflects that
-  //    the rates weren't on the pricing page itself.
-  if (extractionPriceCount(bestExtraction) < 3) {
+  // 2. Only if the pricing page yielded NO prices at all (a pure shell that links out to the real
+  //    rates) do we follow deeper — and only to candidates that are genuinely pricing pages, never
+  //    blogs. If the page has any real prices, we stop there (don't wander off to other pages).
+  if (extractionPriceCount(bestExtraction) === 0) {
     const candidates = deeperPricingCandidates(pricingFetched.content || cheapFetched.content, url);
     for (const candidate of candidates.slice(0, 3)) {
       const { extraction: e, fetched: f } = await readBest(candidate);

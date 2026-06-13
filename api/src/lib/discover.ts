@@ -127,21 +127,38 @@ async function explorerPick(host: string, candidates: string[]): Promise<string 
  * "Learn more" → /docs/about/pricing), find those deeper pricing pages: pricing-ish links in the
  * page content + conventional docs-pricing paths. Used to chase the complete pricing picture.
  */
+// Non-pricing sections we must NEVER mistake for a pricing page when digging deeper.
+const NON_PRICING_PATH = /\/(blog|changelog|news|guides?|posts?|articles?|stories|customers|community|careers|about|company|events?|webinars?|resources?|help|support|docs)\b/i;
+
+/** True only when the URL PATH itself clearly denotes a pricing page (not a blog about pricing). */
+function isPricingPageUrl(u: string): boolean {
+  try {
+    const path = new URL(u).pathname.toLowerCase();
+    if (!/(^|\/)(pricing|plans?|billing)(\.md)?(\/|$)/.test(path)) return false;
+    // Allow docs ONLY when the path is specifically a docs *pricing* page (e.g. /docs/about/pricing).
+    if (/\/docs\b/.test(path)) return /\/docs\b.*\/(pricing|plans?)\b/.test(path);
+    return !NON_PRICING_PATH.test(path);
+  } catch {
+    return false;
+  }
+}
+
 export function deeperPricingCandidates(content: string, currentUrl: string): string[] {
   const origin = new URL(currentUrl).origin;
   const out: string[] = [];
   for (const m of content.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)) {
-    const text = m[1] ?? "";
     const url = m[2] ?? "";
-    if (PRICING_RE.test(text) || PRICING_RE.test(url)) {
-      const a = abs(url, origin);
-      if (a) out.push(a);
-    }
+    const a = abs(url, origin);
+    if (a && isPricingPageUrl(a)) out.push(a);
   }
   for (const p of ["/docs/about/pricing", "/docs/pricing", "/pricing/details", "/pricing/detail"]) {
     out.push(`${origin}${p}`);
   }
-  return rankCandidates([...new Set(out)].filter((u) => u.replace(/\/$/, "") !== currentUrl.replace(/\/$/, "")));
+  return rankCandidates(
+    [...new Set(out)].filter(
+      (u) => u.replace(/\/$/, "") !== currentUrl.replace(/\/$/, "") && isPricingPageUrl(u),
+    ),
+  );
 }
 
 export type Resolution = { url: string; fetched: FetchResult; via: string };
@@ -167,12 +184,14 @@ export async function resolvePricingContent(inputUrl: string): Promise<Resolutio
     candidatesFromSitemap(origin),
   ]);
   const conventional = [`${origin}/pricing`, `${origin}/pricing.md`, `${origin}/plans`];
-  const ranked = rankCandidates([
-    ...llms,
-    ...candidatesFromHomepage(homepageHtml, origin),
-    ...sitemap,
-    ...conventional,
-  ]).slice(0, 8);
+  // Only consider URLs whose PATH is genuinely a pricing page — never a blog post that merely
+  // mentions pricing (e.g. /blog/parity-pricing-…). If none qualify, we fall back to the submitted
+  // page itself (many landing-page products put pricing right on the homepage).
+  const ranked = rankCandidates(
+    [...llms, ...candidatesFromHomepage(homepageHtml, origin), ...sitemap, ...conventional].filter(
+      isPricingPageUrl,
+    ),
+  ).slice(0, 8);
 
   const chosen = await explorerPick(origin, ranked);
   const ordered = chosen ? [chosen, ...ranked.filter((c) => c !== chosen)] : ranked;
