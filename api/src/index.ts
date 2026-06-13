@@ -21,18 +21,27 @@ const REGEN_AFTER_MS = 24 * 60 * 60 * 1000; // 1 day
 const RATE_LIMIT_PER_IP = Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 20);
 const RATE_LIMIT_GLOBAL = Number(process.env.RATE_LIMIT_GLOBAL_PER_HOUR ?? 300);
 const WEB_URL = (process.env.WEB_URL ?? "").replace(/\/+$/, "");
+const REVALIDATE_SECRET = process.env.REVALIDATE_SECRET ?? "";
 
 /**
- * Fire-and-forget: warm the freshly-rated page's social images so the first crawler
- * (X/Slack/etc.) gets a CDN-cached PNG instantly instead of a cold Satori render.
- * Fetches the page, extracts the exact og:image/twitter:image URLs, and requests them.
+ * Fire-and-forget: after a (re)generation, drop the page's cached social images (so a regen's
+ * new scores take effect), then re-warm the exact og:image/twitter:image URLs so the first
+ * crawler (X/Slack/etc.) gets a CDN-cached PNG instantly instead of a cold render.
  */
-function prewarmSocialImages(slug: string): void {
+function refreshSocialImages(slug: string): void {
   if (!WEB_URL) return;
   void (async () => {
     try {
+      // 1. Revalidate so the cached page + images are invalidated (reflect new scores).
+      if (REVALIDATE_SECRET) {
+        await fetch(
+          `${WEB_URL}/api/revalidate?slug=${encodeURIComponent(slug)}&secret=${encodeURIComponent(REVALIDATE_SECRET)}`,
+          { method: "POST" },
+        ).catch(() => {});
+      }
+      // 2. Re-warm: fetch the page, extract the exact image URLs, and request them (fresh render).
       const res = await fetch(`${WEB_URL}/${slug}`, {
-        headers: { "user-agent": "RateMyPricingPrewarm/1.0" },
+        headers: { "user-agent": "RateMyPricingPrewarm/1.0", "cache-control": "no-cache" },
       });
       const html = await res.text();
       const urls = new Set<string>();
@@ -42,9 +51,9 @@ function prewarmSocialImages(slug: string): void {
         if (m[1]) urls.add(m[1].replace(/&amp;/g, "&"));
       }
       await Promise.all([...urls].map((u) => fetch(u).catch(() => {})));
-      console.log(`[prewarm] ${slug}: warmed ${urls.size} social image(s)`);
+      console.log(`[refresh] ${slug}: revalidated + warmed ${urls.size} social image(s)`);
     } catch (err) {
-      console.error("[prewarm] failed:", err instanceof Error ? err.message : err);
+      console.error("[refresh] failed:", err instanceof Error ? err.message : err);
     }
   })();
 }
@@ -277,7 +286,7 @@ app.post("/rate", async (c) => {
       fetchOk: saved.fetchOk,
       listed: saved.listed,
     });
-    prewarmSocialImages(saved.slug);
+    refreshSocialImages(saved.slug);
   }
 
   return c.json({ cached: false, rating: saved });
