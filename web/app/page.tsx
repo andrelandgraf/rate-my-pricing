@@ -13,9 +13,10 @@ const CATEGORIES = [...CATEGORY_ORDER, "all"] as string[];
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; category?: string }>;
+  searchParams: Promise<{ sort?: string; category?: string; q?: string }>;
 }) {
   const params = await searchParams;
+  const initialQuery = typeof params.q === "string" ? params.q : "";
   const sort: SortKey = SORTS.includes(params.sort as SortKey)
     ? (params.sort as SortKey)
     : "best";
@@ -31,7 +32,7 @@ export default async function Home({
         {ratings === null ? (
           <Maintenance />
         ) : (
-          <HomeBody ratings={ratings} sort={sort} category={category} />
+          <HomeBody ratings={ratings} sort={sort} category={category} initialQuery={initialQuery} />
         )}
       </main>
       <Footer />

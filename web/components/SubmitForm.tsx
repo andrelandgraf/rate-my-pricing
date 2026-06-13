@@ -20,12 +20,14 @@ const STEPS = [
 export default function SubmitForm({
   autofocus = false,
   onQueryChange,
+  initialValue = "",
 }: {
   autofocus?: boolean;
   onQueryChange?: (query: string) => void;
+  initialValue?: string;
 }) {
   const router = useRouter();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialValue);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(0);

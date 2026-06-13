@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import SubmitForm from "@/components/SubmitForm";
 import FilterTabs from "@/components/FilterTabs";
 import CategoryFilter from "@/components/CategoryFilter";
@@ -12,12 +12,30 @@ export default function HomeBody({
   ratings,
   sort,
   category,
+  initialQuery = "",
 }: {
   ratings: RatingSummary[];
   sort: SortKey;
   category: string;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the typed search in the URL (shallowly, debounced) so it survives a details→back trip,
+  // alongside the category & sort that already live in the URL.
+  function handleQueryChange(next: string) {
+    setQuery(next);
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (category) params.set("category", category);
+      if (sort) params.set("sort", sort);
+      if (next.trim()) params.set("q", next.trim());
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
+    }, 350);
+  }
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -46,7 +64,7 @@ export default function HomeBody({
           scores — like Lighthouse, but for pricing pages.
         </p>
         <div className="mt-8">
-          <SubmitForm autofocus onQueryChange={setQuery} />
+          <SubmitForm autofocus onQueryChange={handleQueryChange} initialValue={initialQuery} />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm text-ink-soft font-medium">
           <span>🧾 pricing clarity</span>
