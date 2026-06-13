@@ -11,18 +11,31 @@ const CORAL = "#ff5d57";
 const GREEN = "#16a34a";
 const TRACK = "rgba(28,26,23,0.12)";
 
+const FONT_TTL = 60 * 60 * 24 * 365;
+
 async function loadFont(family: string, weight: number): Promise<ArrayBuffer | null> {
   try {
     const css = await fetch(
       `https://fonts.googleapis.com/css2?family=${family}:wght@${weight}`,
-      { headers: { "User-Agent": "Mozilla/5.0" } },
+      { headers: { "User-Agent": "Mozilla/5.0" }, next: { revalidate: FONT_TTL } },
     ).then((r) => r.text());
     const url = css.match(/src: url\((.+?)\) format/)?.[1];
     if (!url) return null;
-    return await fetch(url).then((r) => r.arrayBuffer());
+    return await fetch(url, { next: { revalidate: FONT_TTL } }).then((r) => r.arrayBuffer());
   } catch {
     return null;
   }
+}
+
+let fontsPromise: Promise<[ArrayBuffer | null, ArrayBuffer | null]> | null = null;
+function loadFonts(): Promise<[ArrayBuffer | null, ArrayBuffer | null]> {
+  if (!fontsPromise) {
+    fontsPromise = Promise.all([
+      loadFont("Bricolage+Grotesque", 800),
+      loadFont("Space+Grotesk", 500),
+    ]);
+  }
+  return fontsPromise;
 }
 
 function Gauge({ label }: { label: string }) {
@@ -54,10 +67,7 @@ function Gauge({ label }: { label: string }) {
 }
 
 export default async function Image() {
-  const [display, body] = await Promise.all([
-    loadFont("Bricolage+Grotesque", 800),
-    loadFont("Space+Grotesk", 500),
-  ]);
+  const [display, body] = await loadFonts();
   const fonts = [
     display && { name: "Display", data: display, weight: 800 as const, style: "normal" as const },
     body && { name: "Body", data: body, weight: 500 as const, style: "normal" as const },

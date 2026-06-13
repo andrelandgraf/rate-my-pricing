@@ -27,18 +27,32 @@ const INK = "#1c1a17";
 const INK_SOFT = "#514b40";
 const TRACK = "rgba(28,26,23,0.12)";
 
+const FONT_TTL = 60 * 60 * 24 * 365; // cache font bytes ~forever (Data Cache)
+
 async function loadFont(family: string, weight: number): Promise<ArrayBuffer | null> {
   try {
     const css = await fetch(
       `https://fonts.googleapis.com/css2?family=${family}:wght@${weight}`,
-      { headers: { "User-Agent": "Mozilla/5.0" } },
+      { headers: { "User-Agent": "Mozilla/5.0" }, next: { revalidate: FONT_TTL } },
     ).then((r) => r.text());
     const url = css.match(/src: url\((.+?)\) format/)?.[1];
     if (!url) return null;
-    return await fetch(url).then((r) => r.arrayBuffer());
+    return await fetch(url, { next: { revalidate: FONT_TTL } }).then((r) => r.arrayBuffer());
   } catch {
     return null;
   }
+}
+
+// Memoized per warm instance so repeated renders skip the font work entirely.
+let fontsPromise: Promise<[ArrayBuffer | null, ArrayBuffer | null]> | null = null;
+function loadFonts(): Promise<[ArrayBuffer | null, ArrayBuffer | null]> {
+  if (!fontsPromise) {
+    fontsPromise = Promise.all([
+      loadFont("Bricolage+Grotesque", 800),
+      loadFont("Space+Grotesk", 500),
+    ]);
+  }
+  return fontsPromise;
 }
 
 function truncate(value: string, max: number): string {
@@ -89,11 +103,7 @@ function Gauge({ score, label, caption }: { score: number; label: string; captio
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [rating, display, body] = await Promise.all([
-    getRating(slug),
-    loadFont("Bricolage+Grotesque", 800),
-    loadFont("Space+Grotesk", 500),
-  ]);
+  const [rating, [display, body]] = await Promise.all([getRating(slug), loadFonts()]);
 
   const fonts = [
     display && { name: "Display", data: display, weight: 800 as const, style: "normal" as const },
