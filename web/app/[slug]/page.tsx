@@ -47,7 +47,7 @@ export default async function RatingPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const rating = await fetchRating(slug);
+  const rating = await fetchRating(slug, { incrementViews: true });
   if (rating === "unreachable") {
     return (
       <>

@@ -1,21 +1,19 @@
 import { ImageResponse } from "next/og";
-import { API_URL } from "@/lib/api";
 import type { Rating } from "@/lib/types";
+import { getRating as getRatingRow } from "@/lib/db";
 import { scoreColor, pricingLabel, agentLabel, hostOf } from "@/lib/format";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Rate My Pricing — score card";
+export const runtime = "nodejs";
 
 // ISR-cache the rendered card so a single pre-warm serves crawlers a cached PNG for a day.
 export const revalidate = 86400;
 
 async function getRating(slug: string): Promise<Rating | null> {
   try {
-    const res = await fetch(`${API_URL}/ratings/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 86400 },
-    });
-    return res.ok ? ((await res.json()) as Rating) : null;
+    return await getRatingRow(slug);
   } catch {
     return null;
   }

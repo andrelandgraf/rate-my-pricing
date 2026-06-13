@@ -1,45 +1,35 @@
-import type { Rating, RatingSummary, RateResponse, SortKey } from "./types";
+import type { Rating, RateResponse, SortKey } from "./types";
+import { getLeaderboard, getRating } from "./db";
 
+// The agent (rating generation) still lives on the Neon Function. Reads now go straight to
+// Postgres (see ./db), so the leaderboard/detail pages stay up even when the agent is down.
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "https://br-rough-smoke-w2hoayam-ratemypricing.compute.c-1.us-east-2.aws.neon.build";
 
 /**
- * Server-side: fetch the leaderboard, filtered by category. Never cached.
- * Returns `null` when the API is unreachable/erroring (so the UI can show a maintenance
- * state instead of a misleading "empty leaderboard"); an empty array means genuinely no entries.
+ * Server-side: leaderboard rows from Postgres, filtered by category. Returns `null` only if the
+ * database itself is unreachable (so the UI can show a maintenance state instead of a misleading
+ * "empty leaderboard"); an empty array means genuinely no entries.
  */
-export async function fetchLeaderboard(
-  sort: SortKey,
-  category: string,
-  limit = 100,
-): Promise<RatingSummary[] | null> {
+export async function fetchLeaderboard(sort: SortKey, category: string, limit = 100) {
   try {
-    const res = await fetch(
-      `${API_URL}/ratings?sort=${sort}&category=${encodeURIComponent(category)}&limit=${limit}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { ratings: RatingSummary[] };
-    return data.ratings ?? [];
+    return await getLeaderboard(sort, category, limit);
   } catch {
     return null;
   }
 }
 
 /**
- * Server-side: fetch a single rating by slug. Returns the rating, `null` when it genuinely
- * doesn't exist (404), or `"unreachable"` when the API is down (so the page can show maintenance
- * instead of a misleading "not found").
+ * Server-side: a single rating by slug from Postgres. Returns the rating, `null` when it genuinely
+ * doesn't exist, or `"unreachable"` when the database is down.
  */
-export async function fetchRating(slug: string): Promise<Rating | "unreachable" | null> {
+export async function fetchRating(
+  slug: string,
+  opts: { incrementViews?: boolean } = {},
+): Promise<Rating | "unreachable" | null> {
   try {
-    const res = await fetch(`${API_URL}/ratings/${encodeURIComponent(slug)}`, {
-      cache: "no-store",
-    });
-    if (res.status === 404) return null;
-    if (!res.ok) return "unreachable";
-    return (await res.json()) as Rating;
+    return await getRating(slug, opts);
   } catch {
     return "unreachable";
   }
@@ -64,13 +54,23 @@ export async function rateUrl(url: string, force = false): Promise<RateResponse>
       body: JSON.stringify({ url, force }),
     });
   } catch {
-    // Network-level failure (connection dropped, offline, CORS, etc.).
-    throw new RateError("network", "Couldn't reach the agent. Check your connection and try again.");
+    // Network-level failure: the agent (Neon Function) is unreachable / paused.
+    throw new RateError(
+      "agent_paused",
+      "The rating agent is paused right now — please hold tight and try again shortly. 🤖💤",
+    );
   }
   if (!res.ok) {
     const err = (await res.json().catch(() => null)) as
       | { error?: string; message?: string }
       | null;
+    // 5xx/502 from the function = agent down — show the friendly "paused" message.
+    if (res.status >= 500) {
+      throw new RateError(
+        "agent_paused",
+        "The rating agent is paused right now — please hold tight and try again shortly. 🤖💤",
+      );
+    }
     throw new RateError(err?.error ?? "request_failed", err?.message ?? defaultMessage(res.status));
   }
   return (await res.json()) as RateResponse;
