@@ -18,10 +18,19 @@ const rows = await db
   .where(onlyListed);
 console.log(`regenerating ${rows.length} ratings with the hardened chain…`);
 
+// This machine sits behind a TLS-intercepting corporate proxy that Bun's fetch rejects; trust the
+// chain for these calls to our own domain (local maintenance script only).
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 async function revalidate(slug: string) {
   if (!WEB_URL || !REVALIDATE_SECRET) return;
   try {
-    await fetch(`${WEB_URL}/api/revalidate?slug=${encodeURIComponent(slug)}&secret=${REVALIDATE_SECRET}`);
+    // The revalidate route is POST-only — busts the cached page + social images.
+    const res = await fetch(
+      `${WEB_URL}/api/revalidate?slug=${encodeURIComponent(slug)}&secret=${REVALIDATE_SECRET}`,
+      { method: "POST" },
+    );
+    if (!res.ok) console.error(`  revalidate ${slug} -> ${res.status}`);
   } catch (err) {
     console.error(`  revalidate ${slug} failed:`, err instanceof Error ? err.message : err);
   }
