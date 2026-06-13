@@ -21,7 +21,9 @@ import type { NewRatingRow } from "../db/schema";
 export type GeneratedRating = Omit<NewRatingRow, "id" | "createdAt" | "updatedAt" | "views">;
 
 /** Run the full agent pipeline for a URL and return a row ready to persist. */
-export async function generateRating(rawUrl: string): Promise<{ slug: string; row: GeneratedRating }> {
+export async function generateRating(
+  rawUrl: string,
+): Promise<{ slug: string; row: GeneratedRating; fetchStatus: number }> {
   let url = normalizeUrl(rawUrl);
 
   let fetched = await fetchPricingContent(url);
@@ -30,6 +32,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
     // error, so just log it; don't report to Sentry.
     console.warn(`[agent] could not fetch ${url} (status ${fetched.status})`);
   }
+  let fetchStatus = fetched.status;
   const host = hostFromUrl(url);
 
   // Categorize (full-page context → company name + category) and extract the pricing structure
@@ -48,6 +51,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       if (e2.foundPricing) {
         url = pricingUrl;
         fetched = f2;
+        fetchStatus = f2.status;
         extraction = e2;
       }
     }
@@ -75,6 +79,7 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
 
   return {
     slug,
+    fetchStatus,
     row: {
       slug,
       host,

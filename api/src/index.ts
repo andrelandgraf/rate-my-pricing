@@ -59,6 +59,14 @@ function refreshSocialImages(slug: string): void {
   })();
 }
 
+/** Friendly reason for an unfetchable URL, by HTTP status. */
+function unfetchableMessage(status: number): string {
+  if (status === 404 || status === 410) return "That page wasn't found (404). Double-check the URL — does the pricing page live somewhere else?";
+  if (status === 401 || status === 403) return "That page blocked our agent (it may require a login). Try a public pricing page.";
+  if (status >= 500) return `That site returned an error (status ${status}). Try again in a bit.`;
+  return "Couldn't reach that page. Check the URL and try again.";
+}
+
 function clientIp(c: Context): string {
   const xff = c.req.header("x-forwarded-for");
   const first = xff?.split(",")[0]?.trim();
@@ -231,7 +239,17 @@ app.post("/rate", async (c) => {
     );
   }
 
-  const { row } = await generateRating(normalized);
+  const { row, fetchStatus } = await generateRating(normalized);
+
+  // Guardrail: if we couldn't actually fetch the page (404/401/403/timeout), don't persist a
+  // junk rating. Keep any existing good rating for the host; otherwise tell the user why.
+  if (!row.fetchOk) {
+    if (existing) return c.json({ cached: true, rating: existing });
+    return c.json(
+      { error: "unfetchable", status: fetchStatus, message: unfetchableMessage(fetchStatus) },
+      422,
+    );
+  }
 
   const updatedFields = {
     host: row.host,
