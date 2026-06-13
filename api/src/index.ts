@@ -6,7 +6,7 @@ import { Pool } from "pg";
 import { desc, asc, eq, sql } from "drizzle-orm";
 import { parseEnv } from "@neondatabase/env/v1";
 import config from "../neon";
-import { ratings } from "./db/schema";
+import { ratings, ratingHistory } from "./db/schema";
 import { generateRating } from "./lib/rate";
 import { normalizeUrl, hostFromUrl } from "./lib/slug";
 import { assertSafeUrl, UnsafeUrlError } from "./lib/safeFetch";
@@ -123,6 +123,24 @@ app.get("/ratings/:slug", async (c) => {
   return c.json(row);
 });
 
+app.get("/ratings/:slug/history", async (c) => {
+  const slug = c.req.param("slug");
+  const rows = await db
+    .select({
+      pricingScore: ratingHistory.pricingScore,
+      agentScore: ratingHistory.agentScore,
+      source: ratingHistory.source,
+      model: ratingHistory.model,
+      listed: ratingHistory.listed,
+      createdAt: ratingHistory.createdAt,
+    })
+    .from(ratingHistory)
+    .where(eq(ratingHistory.slug, slug))
+    .orderBy(asc(ratingHistory.createdAt))
+    .limit(500);
+  return c.json({ slug, history: rows });
+});
+
 app.post("/rate", async (c) => {
   let body: { url?: string; force?: boolean };
   try {
@@ -231,7 +249,24 @@ app.post("/rate", async (c) => {
       .returning();
   }
 
-  if (saved) prewarmSocialImages(saved.slug);
+  if (saved) {
+    // Append-only history snapshot for time-series charts / regression tracking.
+    await db.insert(ratingHistory).values({
+      slug: saved.slug,
+      host: saved.host,
+      url: saved.url,
+      title: saved.title,
+      pricingScore: saved.pricingScore,
+      agentScore: saved.agentScore,
+      tree: saved.tree,
+      breakdown: saved.breakdown,
+      source: saved.source,
+      model: saved.model,
+      fetchOk: saved.fetchOk,
+      listed: saved.listed,
+    });
+    prewarmSocialImages(saved.slug);
+  }
 
   return c.json({ cached: false, rating: saved });
 });

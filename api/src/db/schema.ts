@@ -48,6 +48,36 @@ export const ratings = pgTable(
 export type RatingRow = typeof ratings.$inferSelect;
 export type NewRatingRow = typeof ratings.$inferInsert;
 
+/**
+ * Append-only snapshot of every agent (re)generation, so scores can be charted over time
+ * and regressions/improvements tracked. `ratings` holds the latest; this holds the history.
+ */
+export const ratingHistory = pgTable(
+  "rating_history",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull(),
+    host: text("host").notNull().default(""),
+    url: text("url").notNull(),
+    title: text("title").notNull().default(""),
+    pricingScore: integer("pricing_score").notNull(),
+    agentScore: integer("agent_score").notNull(),
+    tree: jsonb("tree").$type<PricingTree>(),
+    breakdown: jsonb("breakdown").$type<Breakdown>(),
+    source: text("source").notNull().default(""),
+    model: text("model").notNull().default(""),
+    fetchOk: boolean("fetch_ok").notNull().default(true),
+    listed: boolean("listed").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    slugCreatedIdx: index("rating_history_slug_created_idx").on(table.slug, table.createdAt),
+  }),
+);
+
+export type RatingHistoryRow = typeof ratingHistory.$inferSelect;
+export type NewRatingHistoryRow = typeof ratingHistory.$inferInsert;
+
 /** Fixed-window counters for rate limiting expensive (token-burning) generations. */
 export const rateLimits = pgTable(
   "rate_limits",
