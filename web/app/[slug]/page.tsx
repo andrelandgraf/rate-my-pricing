@@ -9,6 +9,7 @@ import ScoreBreakdown from "@/components/ScoreBreakdown";
 import RegenerateButton from "@/components/RegenerateButton";
 import ShareButton from "@/components/ShareButton";
 import Confetti from "@/components/Confetti";
+import PrewarmOg from "@/components/PrewarmOg";
 import { fetchRating } from "@/lib/api";
 import { pricingLabel, agentLabel, hostOf, timeAgo } from "@/lib/format";
 
@@ -47,6 +48,7 @@ export default async function RatingPage({
 
   return (
     <>
+      <PrewarmOg />
       {perfect && <Confetti />}
       <Header />
       <main className="flex-1">
