@@ -14,6 +14,7 @@ import Confetti from "@/components/Confetti";
 import PrewarmOg from "@/components/PrewarmOg";
 import { fetchRating } from "@/lib/api";
 import { pricingLabel, agentLabel, hostOf, timeAgo } from "@/lib/format";
+import { CATEGORY_EMOJI, CATEGORY_LABELS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,9 @@ export default async function RatingPage({
                     {rating.source === "markdown" ? "📄 markdown" : "🌐 html"}
                   </span>
                   <span className="chip bg-paper-2 text-sm">🕑 {timeAgo(rating.createdAt)}</span>
+                  <span className="chip bg-paper-2 text-sm">
+                    {CATEGORY_EMOJI[rating.category]} {CATEGORY_LABELS[rating.category]}
+                  </span>
                   {perfect && <span className="chip bg-lime text-sm animate-wobble">🎉 perfect score</span>}
                   {!rating.listed && (
                     <span className="chip bg-coral/30 text-sm">🚫 no public pricing · unlisted</span>

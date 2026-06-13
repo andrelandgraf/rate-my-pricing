@@ -1,5 +1,5 @@
 import { fetchPricingContent } from "./fetch";
-import { parsePricing, MODEL } from "./parse";
+import { extract, analyze, buildOutput, extractionFacts, MODEL } from "./parse";
 import { categorize } from "./categorize";
 import { pricingScore, agentScore } from "./score";
 import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl, prettyHostName } from "./slug";
@@ -27,31 +27,35 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
     // error, so just log it; don't report to Sentry.
     console.warn(`[agent] could not fetch ${url} (status ${fetched.status})`);
   }
-  let output = await parsePricing(fetched, url);
+
+  // Step 1 — extract the clean, injection-free pricing facts.
+  let extraction = await extract(fetched, url);
 
   // If a bare host has no pricing on its homepage, try the conventional /pricing path.
-  if (!output.meta.foundPricing && isBareHostUrl(url)) {
+  if (!extraction.foundPricing && isBareHostUrl(url)) {
     const pricingUrl = `${new URL(url).origin}/pricing`;
     const f2 = await fetchPricingContent(pricingUrl);
     if (f2.ok) {
-      const o2 = await parsePricing(f2, pricingUrl);
-      if (o2.meta.foundPricing) {
+      const e2 = await extract(f2, pricingUrl);
+      if (e2.foundPricing) {
         url = pricingUrl;
         fetched = f2;
-        output = o2;
+        extraction = e2;
       }
     }
   }
 
   const slug = slugFromUrl(url);
   const host = hostFromUrl(url);
+  const title = deriveTitle(extraction.productName, host);
 
-  const pricing = pricingScore(output);
+  // Categorize from the clean facts, THEN analyze + score with category context.
+  const category = await categorize({ title, host, facts: extractionFacts(extraction) });
+  const analysis = await analyze(extraction, category);
+  const output = buildOutput(extraction, analysis);
+
+  const pricing = pricingScore(output, category);
   const agent = agentScore(fetched, output);
-
-  const title = deriveTitle(output.tree.productName, host);
-
-  const category = await categorize({ title, host, summary: output.tree.notes });
 
   return {
     slug,

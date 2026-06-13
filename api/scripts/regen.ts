@@ -27,7 +27,7 @@ async function revalidate(slug: string) {
   }
 }
 
-const CONCURRENCY = 3;
+const CONCURRENCY = 4;
 let i = 0;
 let done = 0;
 

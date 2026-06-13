@@ -8,6 +8,7 @@ import {
   type AgentOutput,
   type Extraction,
   type Analysis,
+  type Category,
   type FetchResult,
 } from "./types";
 
@@ -43,8 +44,20 @@ function buildExtractPrompt(fetched: FetchResult, url: string): string {
   ].join("\n");
 }
 
+// How usage/metered billing should be framed in the analyst's summary, per category norm.
+const USAGE_NORM: Record<Category, string> = {
+  devtools: "Usage/metered billing is standard and expected here — do not frame it as a red flag.",
+  "ai-labs": "Token/usage billing is fundamental here — treat it as completely normal.",
+  clouds: "Usage billing is the norm, but call out genuine unpredictability where it exists.",
+  saas: "Usage/metered billing is unusual for this category (flat/per-seat is the norm) — note it.",
+  educational: "Usage/metered billing is a red flag here — courses should be flat or one-time.",
+  other: "Judge complexity on its own terms.",
+};
+
 // Step 1: extract literal pricing facts (with model fallback), hardened against injection.
-async function extract(fetched: FetchResult, url: string): Promise<Extraction> {
+export async function extract(fetched: FetchResult, url: string): Promise<Extraction> {
+  if (!fetched.ok || !fetched.content.trim()) return emptyExtraction();
+
   let lastError: unknown;
   for (const { label, agent } of EXTRACTORS) {
     try {
@@ -71,21 +84,24 @@ async function extract(fetched: FetchResult, url: string): Promise<Extraction> {
   return emptyExtraction();
 }
 
-// Step 2: derive billing model / complexity signals / summary from the CLEAN extraction only.
-async function analyze(extraction: Extraction): Promise<Analysis> {
+// Step 2: derive billing model / complexity signals / summary from the CLEAN extraction only,
+// with category context so the summary is framed against that category's norms.
+export async function analyze(extraction: Extraction, category: Category): Promise<Analysis> {
   if (!extraction.foundPricing || extraction.tiers.length === 0) {
     return {
       billingModel: "unknown",
       hiddenCostSignals: [],
-      notes: extraction.foundPricing
-        ? "No clear pricing tiers were found."
-        : "No concrete pricing was found on the page.",
+      notes: "No concrete pricing was found on the page.",
     };
   }
   try {
     const agent = mastra.getAgent("analyst");
     const res = await agent.generate(
       [
+        `Product category: ${category}. ${USAGE_NORM[category] ?? USAGE_NORM.other}`,
+        "List ALL factual complexity signals regardless of category (do not omit any); only the",
+        "framing of your summary should reflect the category norm above.",
+        "",
         "Analyze this structured pricing data (trusted JSON) and return your judgment.",
         "```json",
         JSON.stringify(
@@ -115,7 +131,6 @@ async function analyze(extraction: Extraction): Promise<Analysis> {
       tags: { component: "agent", phase: "analyze" },
     });
   }
-  // Fallback: minimal neutral analysis derived without the LLM.
   return {
     billingModel: "unknown",
     hiddenCostSignals: extraction.addOns.length > 0 ? ["Paid add-ons available"] : [],
@@ -123,27 +138,8 @@ async function analyze(extraction: Extraction): Promise<Analysis> {
   };
 }
 
-export async function parsePricing(fetched: FetchResult, url: string): Promise<AgentOutput> {
-  if (!fetched.ok || !fetched.content.trim()) {
-    const raw = emptyExtraction();
-    return {
-      raw,
-      tree: {
-        productName: "Unknown",
-        currency: "",
-        billingModel: "unknown",
-        tiers: [],
-        addOns: [],
-        hiddenCostSignals: ["The agent could not retrieve readable content from this page."],
-        notes: "The agent could not retrieve readable content from this page.",
-      },
-      meta: { requiresInteraction: false, foundPricing: false },
-    };
-  }
-
-  const extraction = await extract(fetched, url);
-  const analysis = await analyze(extraction);
-
+// Merge the clean facts + analysis into the stored AgentOutput shape.
+export function buildOutput(extraction: Extraction, analysis: Analysis): AgentOutput {
   return {
     raw: extraction,
     tree: {
@@ -160,4 +156,16 @@ export async function parsePricing(fetched: FetchResult, url: string): Promise<A
       foundPricing: extraction.foundPricing,
     },
   };
+}
+
+/** Short, factual blurb (no sentiment) to help the categorizer key off real structure. */
+export function extractionFacts(extraction: Extraction): string {
+  const parts = [`${extraction.tiers.length} plan(s)`];
+  if (extraction.usageDimensions.length) {
+    parts.push(
+      `metered: ${extraction.usageDimensions.slice(0, 6).map((d) => d.name).join(", ")}`,
+    );
+  }
+  if (extraction.addOns.length) parts.push(`${extraction.addOns.length} add-on(s)`);
+  return parts.join("; ");
 }

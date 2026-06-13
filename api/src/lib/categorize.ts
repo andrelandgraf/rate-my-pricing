@@ -5,7 +5,7 @@ import { categorizationSchema, type Category } from "./types";
 export async function categorize(input: {
   title: string;
   host: string;
-  summary: string;
+  facts: string;
 }): Promise<Category> {
   try {
     const agent = mastra.getAgent("categorizer");
@@ -13,7 +13,7 @@ export async function categorize(input: {
       [
         `Product: ${input.title}`,
         `Domain: ${input.host}`,
-        `Pricing summary: ${input.summary || "(none)"}`,
+        `Pricing structure: ${input.facts || "(none)"}`,
         "",
         "Classify this product into exactly one category.",
       ].join("\n"),
