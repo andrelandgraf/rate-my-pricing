@@ -8,6 +8,35 @@ export type Breakdown = { pricing: ScoreLine[]; agent: ScoreLine[] };
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const total = (items: ScoreLine[]) => items.reduce((sum, i) => sum + i.points, 0);
 
+// Marketing/promo phrasing that is NOT a payable price (free credits, % discounts, "20+", trials).
+const PROMO =
+  /(%|free\s+credit|up\s*to\b|\bsave\b|discount|\btrial\b|\bcredits?\b|months?\s+free|^\s*\d+\s*\+\s*$)/i;
+
+function isRealPrice(p?: string): boolean {
+  const s = (p ?? "").trim();
+  if (!s) return false;
+  if (/^(custom|contact|contact\s+sales|talk|quote|call|n\/?a|—|-|tbd)$/i.test(s)) return false;
+  if (PROMO.test(s)) return false;
+  return /\d/.test(s) || /^free$/i.test(s);
+}
+
+/**
+ * How many genuinely-priced items we actually mapped (real numeric/Free prices, excluding
+ * marketing blurbs). The core confidence signal: near-zero means we couldn't really read the
+ * pricing — which must NOT be rewarded as "simple".
+ */
+export function concretePriceCount(output: AgentOutput): number {
+  const { tree, raw } = output;
+  let n = 0;
+  for (const t of tree.tiers) {
+    if (isRealPrice(t.price)) n++;
+    for (const g of t.options ?? []) for (const c of g.choices) if (isRealPrice(c.price)) n++;
+  }
+  for (const a of tree.addOns) if (isRealPrice(a.price)) n++;
+  for (const d of raw.usageDimensions) if (isRealPrice(d.price)) n++;
+  return n;
+}
+
 /**
  * Per-category weights on the SAME complexity signals. 1.0 = baseline penalty.
  *
@@ -65,7 +94,11 @@ function breadthPenalty(services: number): number {
  *    (complexity is judged RELATIVE to scope — many simple services beats one knob-laden product).
  * Category weights still tune how "expected" each signal is. No opaque agent-assigned numbers.
  */
-export function pricingScore(output: AgentOutput, category: Category = "other"): ScoreResult {
+export function pricingScore(
+  output: AgentOutput,
+  category: Category = "other",
+  fetched?: FetchResult,
+): ScoreResult {
   const { tree, meta, raw } = output;
 
   if (!meta.foundPricing) {
@@ -78,15 +111,14 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
     };
   }
 
-  // "Found pricing" but nothing concrete to map (no plans, no metered rates) — usually a
-  // JS-rendered page we couldn't read. Don't reward an empty structure with a high score.
-  const usableStructure = tree.tiers.length > 0 || raw.usageDimensions.length > 0;
-  if (!usableStructure) {
+  // Confidence gate: if we couldn't pull any genuine prices (only marketing blurbs, or a
+  // JS-rendered page), this isn't "simple" — we failed to read it. Never reward that.
+  if (concretePriceCount(output) === 0) {
     return {
       score: 12,
       items: [
         { label: "Base score", points: 100 },
-        { label: "Couldn't map a clear pricing structure from the page", points: -88 },
+        { label: "Couldn't read any concrete prices on the page", points: -88 },
       ],
     };
   }
@@ -95,12 +127,20 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
   const noun = CATEGORY_NOUN[category] ?? CATEGORY_NOUN.other;
   const deduct = (base: number, weight: number) => -Math.round(base * weight);
 
-  // Complexity signals (collected first so we can forgive them relative to scope).
+  // Complexity signals. We track which ones are BREADTH-DRIVEN (scale naturally with offering many
+  // products: plans, in-plan options, add-ons) vs INTRINSIC (per-component unpredictability: metered
+  // density, hidden costs, sales gates). Only breadth-driven complexity is later forgiven by scope —
+  // many simple plans is fine, but "20 meters per component" stays a problem no matter the scope.
   const complexity: ScoreLine[] = [];
+  let breadthMagnitude = 0;
+  const pushBreadth = (line: ScoreLine) => {
+    complexity.push(line);
+    breadthMagnitude += -line.points;
+  };
 
   const extraTiers = Math.max(0, tree.tiers.length - 1);
   if (extraTiers > 0) {
-    complexity.push({
+    pushBreadth({
       label: `${tree.tiers.length} plans to compare`,
       points: deduct(Math.min(30, extraTiers * 6), w.tiers),
     });
@@ -112,17 +152,17 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
     0,
   );
   if (optionChoices > 0) {
-    complexity.push({
+    pushBreadth({
       label: `${optionChoices} in-plan configuration choice${optionChoices > 1 ? "s" : ""}`,
       points: deduct(Math.min(20, optionChoices * 2), w.options),
     });
   }
 
-  // Metered billing — now scales with HOW MANY things are metered (more meters = harder to predict).
-  const meters = raw.usageDimensions.length;
+  // Metered billing — scales with HOW MANY things are metered (more meters = harder to predict).
+  const meters = raw.usageDimensions.filter((d) => isRealPrice(d.price)).length;
   const usageUnits = meters > 0 ? meters : tree.billingModel === "usage" || tree.billingModel === "hybrid" ? 2 : 0;
   if (usageUnits > 0) {
-    const base = Math.min(30, 8 + usageUnits * 2.5);
+    const base = Math.min(40, 6 + usageUnits * 2);
     const detail = meters > 0 ? `${meters} metered dimension${meters > 1 ? "s" : ""}` : "Usage-based billing";
     const label =
       w.usage <= 0.7
@@ -134,7 +174,7 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
   }
 
   if (tree.addOns.length > 0) {
-    complexity.push({
+    pushBreadth({
       label: `${tree.addOns.length} add-on${tree.addOns.length > 1 ? "s" : ""} / extras`,
       points: deduct(Math.min(16, tree.addOns.length * 4), w.addOns),
     });
@@ -154,6 +194,13 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
     });
   }
 
+  // A page too large to read in full is itself sprawling pricing — and lowers our confidence that
+  // we captured all the complexity (so we also temper the scope credit below).
+  const truncated = fetched?.truncated ?? false;
+  if (truncated) {
+    complexity.push({ label: "Sprawling pricing page — couldn't read it in full", points: -15 });
+  }
+
   const items: ScoreLine[] = [{ label: "Base score", points: 100 }, ...complexity];
 
   // Scope adjustments — judge complexity RELATIVE to how much the platform offers.
@@ -163,12 +210,14 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
     items.push({ label: `Spans ${services} distinct services to navigate`, points: -breadth });
   }
 
-  const rawComplexity = complexity.reduce((s, i) => s - i.points, 0); // positive magnitude
-  const reliefFactor = Math.min(0.7, 1 - 1 / Math.sqrt(services));
-  const credit = Math.round(rawComplexity * reliefFactor);
+  // Forgive ONLY the breadth-driven complexity in proportion to scope (intrinsic per-component
+  // complexity — metering, hidden costs — is never hand-waved away by "they have many services").
+  let reliefFactor = Math.min(0.6, 1 - 1 / Math.sqrt(services));
+  if (truncated) reliefFactor *= 0.5; // less sure we captured everything
+  const credit = Math.round(breadthMagnitude * reliefFactor);
   if (credit > 0) {
     items.push({
-      label: `Complexity is reasonable for a ${services}-service platform`,
+      label: `Plan breadth is reasonable for a ${services}-service platform`,
       points: credit,
     });
   }
@@ -200,12 +249,17 @@ export function agentScore(fetched: FetchResult, output: AgentOutput): ScoreResu
     items.push({ label: "Read from raw HTML (no markdown)", points: -15 });
   }
 
-  const usableStructure =
-    output.tree.tiers.length > 0 || output.raw.usageDimensions.length > 0;
+  // Confidence gate: no genuine prices extracted means we couldn't actually read the pricing —
+  // a heavy hit to agent easiness, not a free pass.
+  const concrete = concretePriceCount(output);
   if (!output.meta.foundPricing) {
     items.push({ label: "No concrete pricing to parse", points: -40 });
-  } else if (!usableStructure) {
-    items.push({ label: "Couldn't read the real pricing (likely JS-rendered)", points: -40 });
+  } else if (concrete === 0) {
+    items.push({ label: "Couldn't extract any concrete prices (likely JS-rendered or gated)", points: -55 });
+  }
+
+  if (fetched.truncated) {
+    items.push({ label: "Pricing page too large to read in full", points: -20 });
   }
 
   if (output.meta.requiresInteraction) {

@@ -1,7 +1,7 @@
 import { fetchPricingContent } from "./fetch";
 import { extract, analyze, buildOutput, MODEL } from "./parse";
 import { categorize } from "./categorize";
-import { pricingScore, agentScore } from "./score";
+import { pricingScore, agentScore, concretePriceCount } from "./score";
 import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl, prettyHostName } from "./slug";
 
 // Reject generic page headings sometimes returned as a product name.
@@ -61,16 +61,15 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
   const analysis = await analyze(extraction, category);
   const output = buildOutput(extraction, analysis, title);
 
-  const pricing = pricingScore(output, category);
+  const pricing = pricingScore(output, category, fetched);
   const agent = agentScore(fetched, output);
 
-  // Only list entries where we actually mapped a usable pricing structure.
-  const usableStructure =
-    extraction.tiers.length > 0 || extraction.usageDimensions.length > 0;
-  const listed = output.meta.foundPricing && usableStructure;
+  // Only list entries where we actually mapped genuine prices (not marketing blurbs).
+  const hasPrices = concretePriceCount(output) > 0;
+  const listed = output.meta.foundPricing && hasPrices;
   const parseNotes = !output.meta.foundPricing
     ? "No concrete pricing was found on the page."
-    : !usableStructure
+    : !hasPrices
       ? "The agent couldn't read this page's real pricing (it may be rendered client-side)."
       : "";
 

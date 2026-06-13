@@ -185,4 +185,6 @@ export type FetchResult = {
   source: "markdown" | "html" | "none";
   content: string;
   finalUrl: string;
+  /** True when the page was larger than our read window — we only saw part of it. */
+  truncated: boolean;
 };

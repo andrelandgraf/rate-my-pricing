@@ -3,7 +3,7 @@ import { safeFetch, UnsafeUrlError } from "./safeFetch";
 
 const UA =
   "Mozilla/5.0 (compatible; RateMyPricingBot/1.0; +https://rate-my-pricing.vercel.app)";
-const MAX_CHARS = 40_000;
+const MAX_CHARS = 100_000;
 const TIMEOUT_MS = 20_000;
 
 async function timedFetch(url: string, headers: Record<string, string>): Promise<Response | null> {
@@ -89,6 +89,7 @@ export async function fetchPricingContent(normalizedUrl: string): Promise<FetchR
     source: "none",
     content: "",
     finalUrl: normalizedUrl,
+    truncated: false,
   };
 }
 
@@ -107,7 +108,8 @@ function sanitize(content: string): string {
     .replace(INJECTION_DIRECTIVES, "[removed]");
 }
 
-function clamp(result: FetchResult): FetchResult {
+function clamp(result: Omit<FetchResult, "truncated">): FetchResult {
   const content = sanitize(result.content);
-  return { ...result, content: content.length > MAX_CHARS ? content.slice(0, MAX_CHARS) : content };
+  const truncated = content.length > MAX_CHARS;
+  return { ...result, truncated, content: truncated ? content.slice(0, MAX_CHARS) : content };
 }
