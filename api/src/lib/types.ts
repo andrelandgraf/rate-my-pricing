@@ -94,6 +94,15 @@ export const extractionSchema = z.object({
   usageDimensions: z
     .array(usageDimensionSchema)
     .describe("Metered / pay-as-you-go billing axes. Empty if pricing is purely flat/tiered."),
+  services: z
+    .array(z.string())
+    .describe(
+      "Distinct, materially-different product/service offerings the company prices, as identifiable " +
+        "from the page — this measures the SCOPE of what is sold, NOT the number of plans. A focused " +
+        "product is 1. A broad platform that sells many independent primitives (each a different " +
+        "capability bought on its own) lists each distinct offering. Group minor variants of the " +
+        "same offering together; count only genuinely different services. List up to ~40.",
+    ),
   foundPricing: z.boolean().describe("True only if concrete prices are actually present."),
   requiresInteraction: z
     .boolean()
@@ -130,7 +139,15 @@ export const agentOutputSchema = z.object({
 
 export type AgentOutput = z.infer<typeof agentOutputSchema> & { raw: Extraction };
 
-export const CATEGORIES = ["devtools", "clouds", "ai-labs", "saas", "educational", "other"] as const;
+export const CATEGORIES = [
+  "devtools",
+  "paas",
+  "hyperscaler",
+  "ai-lab",
+  "saas",
+  "educational",
+  "other",
+] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const categorizationSchema = z.object({
@@ -143,14 +160,20 @@ export const categorizationSchema = z.object({
   category: z
     .enum(CATEGORIES)
     .describe(
-      "The single best-fit category. devtools: developer tools & platforms that engineers build " +
-        "with or deploy to (app hosting/PaaS, databases, observability, APIs/SDKs, auth & payment " +
-        "infrastructure, CI/CD, AI dev frameworks, coding tools). clouds: broad hyperscalers and " +
-        "large general infrastructure or big-data platforms. ai-labs: providers whose core product " +
-        "is a frontier/foundation model they train and serve (not AI tooling or apps). saas: " +
-        "general business or consumer software apps not primarily aimed at developers (productivity, " +
-        "collaboration, marketing, CRM, link-in-bio, newsletters). educational: courses, bootcamps, " +
-        "and learning platforms. other: none of the above.",
+      "The single best-fit category, decided by how the product is consumed (which shapes its " +
+        "pricing). devtools: tools, APIs, and services developers use WHILE building or operating " +
+        "software but do not deploy their app onto (observability/monitoring, CI/CD, testing, code " +
+        "intelligence, auth/identity, payments, API/SDK utilities). paas: a platform developers " +
+        "deploy their applications or data ONTO — a focused set of runtime/hosting/database/backend " +
+        "primitives that run your code or data. hyperscaler: a broad infrastructure platform " +
+        "offering MANY heterogeneous, independently-purchasable primitives (compute, storage, " +
+        "networking, databases, security, edge, …), billed largely by usage; defined by breadth of " +
+        "distinct services. ai-lab: the core product is a frontier/foundation AI model the company " +
+        "trains and serves, billed mainly per token/inference (not an AI app or AI dev framework). " +
+        "saas: general business or consumer software applications used by end users, not primarily " +
+        "developers (productivity, collaboration, marketing, CRM, content, communication). " +
+        "educational: courses, bootcamps, tutorials, certifications, and learning platforms. other: " +
+        "none of the above.",
     ),
 });
 

@@ -28,6 +28,7 @@ const emptyExtraction = (): Extraction => ({
   tiers: [],
   addOns: [],
   usageDimensions: [],
+  services: [],
   foundPricing: false,
   requiresInteraction: false,
 });
@@ -46,10 +47,11 @@ function buildExtractPrompt(fetched: FetchResult, url: string): string {
 
 // How usage/metered billing should be framed in the analyst's summary, per category norm.
 const USAGE_NORM: Record<Category, string> = {
-  devtools: "Usage/metered billing is standard and expected here — do not frame it as a red flag.",
-  "ai-labs": "Token/usage billing is fundamental here — treat it as completely normal.",
-  clouds: "Usage billing is the norm, but call out genuine unpredictability where it exists.",
-  saas: "Usage/metered billing is unusual for this category (flat/per-seat is the norm) — note it.",
+  devtools: "Usage/metered billing is common here — don't over-flag it; weigh it against scope.",
+  paas: "Usage/metered billing is standard for deploy platforms — expected, not a red flag.",
+  hyperscaler: "Usage billing is the norm; broad scope is expected — judge complexity per service.",
+  "ai-lab": "Token/usage billing is fundamental here — treat it as completely normal.",
+  saas: "Usage/metered billing is unusual for end-user SaaS (flat/per-seat is the norm) — note it.",
   educational: "Usage/metered billing is a red flag here — courses should be flat or one-time.",
   other: "Judge complexity on its own terms.",
 };
@@ -108,6 +110,8 @@ export async function analyze(extraction: Extraction, category: Category): Promi
           {
             productName: extraction.productName,
             currency: extraction.currency,
+            distinctServices: extraction.services,
+            serviceCount: extraction.services.length,
             tiers: extraction.tiers,
             addOns: extraction.addOns,
             usageDimensions: extraction.usageDimensions,

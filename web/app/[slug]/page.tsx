@@ -74,6 +74,11 @@ export default async function RatingPage({
                   <span className="chip bg-paper-2 text-sm">
                     {CATEGORY_EMOJI[rating.category]} {CATEGORY_LABELS[rating.category]}
                   </span>
+                  {(rating.rawExtraction?.services?.length ?? 0) > 1 && (
+                    <span className="chip bg-paper-2 text-sm">
+                      🧱 {rating.rawExtraction!.services.length} services
+                    </span>
+                  )}
                   {perfect && <span className="chip bg-lime text-sm animate-wobble">🎉 perfect score</span>}
                   {!rating.listed && (
                     <span className="chip bg-coral/30 text-sm">🚫 no public pricing · unlisted</span>

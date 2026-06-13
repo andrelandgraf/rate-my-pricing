@@ -1,17 +1,27 @@
-export const CATEGORY_ORDER = ["devtools", "clouds", "ai-labs", "saas", "educational", "other"] as const;
+export const CATEGORY_ORDER = [
+  "devtools",
+  "paas",
+  "hyperscaler",
+  "ai-lab",
+  "saas",
+  "educational",
+  "other",
+] as const;
 export type Category = (typeof CATEGORY_ORDER)[number];
 export const CATEGORY_LABELS: Record<Category, string> = {
   devtools: "DevTools",
-  clouds: "Clouds",
-  "ai-labs": "AI Labs",
+  paas: "PaaS",
+  hyperscaler: "Hyperscalers",
+  "ai-lab": "AI Labs",
   saas: "SaaS",
   educational: "Educational",
   other: "Other",
 };
 export const CATEGORY_EMOJI: Record<Category, string> = {
   devtools: "🛠️",
-  clouds: "☁️",
-  "ai-labs": "🧪",
+  paas: "🚀",
+  hyperscaler: "☁️",
+  "ai-lab": "🧪",
   saas: "💼",
   educational: "🎓",
   other: "📦",
@@ -43,6 +53,7 @@ export type Extraction = {
   tiers: Tier[];
   addOns: AddOn[];
   usageDimensions: UsageDimension[];
+  services: string[];
   foundPricing: boolean;
   requiresInteraction: boolean;
 };

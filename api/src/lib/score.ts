@@ -9,12 +9,12 @@ const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const total = (items: ScoreLine[]) => items.reduce((sum, i) => sum + i.points, 0);
 
 /**
- * Per-category weights on the SAME five clarity signals. 1.0 = baseline penalty.
+ * Per-category weights on the SAME complexity signals. 1.0 = baseline penalty.
  *
- * The guiding principle: judge each signal against what's NORMAL for the category.
- * Usage/metered billing is unavoidable & expected for devtools and AI labs, so it barely
- * dents clarity there; it's unusual (and so a real clarity problem) for SaaS, and a red
- * flag for educational products that should be flat/one-time.
+ * Categories sit on a developer-consumption spectrum; each has its own pricing norms. Usage/metered
+ * billing is the expected, unavoidable model for AI labs, hyperscalers, and PaaS, so it barely
+ * dents clarity there; it's unusual (a real clarity problem) for end-user SaaS, and a red flag for
+ * education, which should be flat/one-time.
  */
 type PricingWeights = {
   tiers: number;
@@ -26,9 +26,10 @@ type PricingWeights = {
 };
 
 const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
-  devtools: { tiers: 1.0, options: 0.6, usage: 0.5, addOns: 0.8, hiddenCosts: 0.6, interaction: 0.8 },
-  "ai-labs": { tiers: 0.9, options: 0.6, usage: 0.4, addOns: 0.9, hiddenCosts: 0.5, interaction: 0.8 },
-  clouds: { tiers: 1.0, options: 0.7, usage: 0.8, addOns: 1.0, hiddenCosts: 1.0, interaction: 0.9 },
+  devtools: { tiers: 1.0, options: 0.7, usage: 0.6, addOns: 0.85, hiddenCosts: 0.7, interaction: 0.85 },
+  paas: { tiers: 1.0, options: 0.6, usage: 0.5, addOns: 0.8, hiddenCosts: 0.6, interaction: 0.8 },
+  hyperscaler: { tiers: 1.0, options: 0.7, usage: 0.6, addOns: 0.9, hiddenCosts: 0.8, interaction: 0.85 },
+  "ai-lab": { tiers: 0.9, options: 0.6, usage: 0.35, addOns: 0.8, hiddenCosts: 0.5, interaction: 0.8 },
   saas: { tiers: 1.0, options: 1.1, usage: 1.3, addOns: 1.0, hiddenCosts: 1.2, interaction: 1.1 },
   educational: { tiers: 1.0, options: 1.2, usage: 1.6, addOns: 1.1, hiddenCosts: 1.4, interaction: 1.2 },
   other: { tiers: 1.0, options: 1.0, usage: 1.0, addOns: 1.0, hiddenCosts: 1.0, interaction: 1.0 },
@@ -36,23 +37,36 @@ const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
 
 const CATEGORY_NOUN: Record<Category, string> = {
   devtools: "dev tools",
-  "ai-labs": "AI labs",
-  clouds: "clouds",
+  paas: "platforms",
+  hyperscaler: "hyperscalers",
+  "ai-lab": "AI labs",
   saas: "SaaS",
   educational: "courses",
   other: "this category",
 };
 
+/** Gentle, capped penalty for navigating a broad catalog of distinct services. */
+function breadthPenalty(services: number): number {
+  if (services <= 1) return 0;
+  if (services <= 3) return 2;
+  if (services <= 7) return 4;
+  if (services <= 15) return 7;
+  if (services <= 30) return 10;
+  return 13;
+}
+
 /**
- * Pricing clarity — how easy the pricing is to understand. 100 = crystal clear.
+ * Pricing clarity — how easy it is to predict what you'll pay, GIVEN the scope of what's offered.
  *
- * Transparent points system: start at 100 and apply named deductions. The deductions use the
- * same base magnitudes everywhere, scaled by a per-category weight so that "expected" complexity
- * (e.g. usage billing for a dev tool) is judged more gently than the same trait somewhere it
- * doesn't belong (e.g. usage billing on a course). Plain feature lists are never penalized.
+ * Transparent points system: start at 100 and apply named, count-derived deductions. Two scope-
+ * aware adjustments make the comparison fair across a one-product startup and a broad platform:
+ *  - a gentle breadth penalty for navigating many distinct services, and
+ *  - a scope credit that forgives raw complexity in proportion to how much the platform offers
+ *    (complexity is judged RELATIVE to scope — many simple services beats one knob-laden product).
+ * Category weights still tune how "expected" each signal is. No opaque agent-assigned numbers.
  */
 export function pricingScore(output: AgentOutput, category: Category = "other"): ScoreResult {
-  const { tree, meta } = output;
+  const { tree, meta, raw } = output;
 
   if (!meta.foundPricing) {
     return {
@@ -66,7 +80,7 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
 
   // "Found pricing" but nothing concrete to map (no plans, no metered rates) — usually a
   // JS-rendered page we couldn't read. Don't reward an empty structure with a high score.
-  const usableStructure = tree.tiers.length > 0 || output.raw.usageDimensions.length > 0;
+  const usableStructure = tree.tiers.length > 0 || raw.usageDimensions.length > 0;
   if (!usableStructure) {
     return {
       score: 12,
@@ -81,57 +95,81 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
   const noun = CATEGORY_NOUN[category] ?? CATEGORY_NOUN.other;
   const deduct = (base: number, weight: number) => -Math.round(base * weight);
 
-  const items: ScoreLine[] = [{ label: "Base score", points: 100 }];
+  // Complexity signals (collected first so we can forgive them relative to scope).
+  const complexity: ScoreLine[] = [];
 
   const extraTiers = Math.max(0, tree.tiers.length - 1);
   if (extraTiers > 0) {
-    items.push({
+    complexity.push({
       label: `${tree.tiers.length} plans to compare`,
       points: deduct(Math.min(30, extraTiers * 6), w.tiers),
     });
   }
 
-  // Nested decisions WITHIN a plan (machine sizes, regions, support levels, …) — each extra
-  // choice is another fork in the pricing decision tree.
+  // Nested decisions WITHIN a plan (machine sizes, regions, support levels, …).
   const optionChoices = tree.tiers.reduce(
     (sum, t) => sum + (t.options ?? []).reduce((s, g) => s + g.choices.length, 0),
     0,
   );
   if (optionChoices > 0) {
-    items.push({
+    complexity.push({
       label: `${optionChoices} in-plan configuration choice${optionChoices > 1 ? "s" : ""}`,
       points: deduct(Math.min(20, optionChoices * 2), w.options),
     });
   }
 
-  if (tree.billingModel === "usage" || tree.billingModel === "hybrid") {
-    const usageLabel =
+  // Metered billing — now scales with HOW MANY things are metered (more meters = harder to predict).
+  const meters = raw.usageDimensions.length;
+  const usageUnits = meters > 0 ? meters : tree.billingModel === "usage" || tree.billingModel === "hybrid" ? 2 : 0;
+  if (usageUnits > 0) {
+    const base = Math.min(30, 8 + usageUnits * 2.5);
+    const detail = meters > 0 ? `${meters} metered dimension${meters > 1 ? "s" : ""}` : "Usage-based billing";
+    const label =
       w.usage <= 0.7
-        ? `Usage-based billing (normal for ${noun})`
+        ? `${detail} (normal for ${noun})`
         : w.usage >= 1.1
-          ? `Usage-based billing (unusual for ${noun} — hard to predict)`
-          : "Usage-based billing (harder to predict)";
-    items.push({ label: usageLabel, points: deduct(15, w.usage) });
+          ? `${detail} (unusual for ${noun} — hard to predict)`
+          : `${detail} (harder to predict)`;
+    complexity.push({ label, points: deduct(base, w.usage) });
   }
 
   if (tree.addOns.length > 0) {
-    items.push({
+    complexity.push({
       label: `${tree.addOns.length} add-on${tree.addOns.length > 1 ? "s" : ""} / extras`,
       points: deduct(Math.min(16, tree.addOns.length * 4), w.addOns),
     });
   }
 
   if (tree.hiddenCostSignals.length > 0) {
-    items.push({
+    complexity.push({
       label: `${tree.hiddenCostSignals.length} hidden-cost signal${tree.hiddenCostSignals.length > 1 ? "s" : ""}`,
       points: deduct(Math.min(24, tree.hiddenCostSignals.length * 6), w.hiddenCosts),
     });
   }
 
   if (meta.requiresInteraction) {
-    items.push({
+    complexity.push({
       label: "Real price needs a sales call / calculator",
       points: deduct(10, w.interaction),
+    });
+  }
+
+  const items: ScoreLine[] = [{ label: "Base score", points: 100 }, ...complexity];
+
+  // Scope adjustments — judge complexity RELATIVE to how much the platform offers.
+  const services = Math.max(1, raw.services.length);
+  const breadth = breadthPenalty(services);
+  if (breadth > 0) {
+    items.push({ label: `Spans ${services} distinct services to navigate`, points: -breadth });
+  }
+
+  const rawComplexity = complexity.reduce((s, i) => s - i.points, 0); // positive magnitude
+  const reliefFactor = Math.min(0.7, 1 - 1 / Math.sqrt(services));
+  const credit = Math.round(rawComplexity * reliefFactor);
+  if (credit > 0) {
+    items.push({
+      label: `Complexity is reasonable for a ${services}-service platform`,
+      points: credit,
     });
   }
 
