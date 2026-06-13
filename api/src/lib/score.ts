@@ -41,40 +41,34 @@ export function concretePriceCount(output: AgentOutput): number {
 }
 
 /**
- * Per-category weights on the SAME complexity signals. 1.0 = baseline penalty.
- *
- * Categories sit on a developer-consumption spectrum; each has its own pricing norms. Usage/metered
- * billing is the expected, unavoidable model for AI labs, hyperscalers, and PaaS, so it barely
- * dents clarity there; it's unusual (a real clarity problem) for end-user SaaS, and a red flag for
- * education, which should be flat/one-time.
+ * Per-category weights. 1.0 = baseline penalty. Usage/metered billing is NOT penalized for merely
+ * existing (it's value-aligned, pay-for-what-you-use) — we only score its *complexity* (how many
+ * metered dimensions), lightly for everyone except education (which should be flat/one-time).
  */
 type PricingWeights = {
   tiers: number;
   options: number;
   usage: number;
   addOns: number;
-  hiddenCosts: number;
   interaction: number;
 };
 
 const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
-  devtools: { tiers: 1.0, options: 0.7, usage: 0.6, addOns: 0.85, hiddenCosts: 0.7, interaction: 0.85 },
-  paas: { tiers: 1.0, options: 0.6, usage: 0.5, addOns: 0.8, hiddenCosts: 0.6, interaction: 0.8 },
-  hyperscaler: { tiers: 1.0, options: 0.7, usage: 0.6, addOns: 0.9, hiddenCosts: 0.8, interaction: 0.85 },
-  "ai-lab": { tiers: 0.9, options: 0.6, usage: 0.35, addOns: 0.8, hiddenCosts: 0.5, interaction: 0.8 },
-  saas: { tiers: 1.0, options: 1.1, usage: 1.3, addOns: 1.0, hiddenCosts: 1.2, interaction: 1.1 },
-  educational: { tiers: 1.0, options: 1.2, usage: 1.6, addOns: 1.1, hiddenCosts: 1.4, interaction: 1.2 },
-  other: { tiers: 1.0, options: 1.0, usage: 1.0, addOns: 1.0, hiddenCosts: 1.0, interaction: 1.0 },
+  devtools: { tiers: 1.0, options: 0.8, usage: 0.5, addOns: 0.9, interaction: 0.85 },
+  paas: { tiers: 1.0, options: 0.7, usage: 0.5, addOns: 0.85, interaction: 0.8 },
+  hyperscaler: { tiers: 1.0, options: 0.8, usage: 0.6, addOns: 0.9, interaction: 0.85 },
+  "ai-lab": { tiers: 0.9, options: 0.7, usage: 0.4, addOns: 0.85, interaction: 0.8 },
+  saas: { tiers: 1.0, options: 1.0, usage: 0.6, addOns: 1.0, interaction: 1.0 },
+  educational: { tiers: 1.0, options: 1.1, usage: 1.5, addOns: 1.0, interaction: 1.1 },
+  other: { tiers: 1.0, options: 1.0, usage: 1.0, addOns: 1.0, interaction: 1.0 },
 };
 
-const CATEGORY_NOUN: Record<Category, string> = {
-  devtools: "dev tools",
-  paas: "platforms",
-  hyperscaler: "hyperscalers",
-  "ai-lab": "AI labs",
-  saas: "SaaS",
-  educational: "courses",
-  other: "this category",
+// "Normal" baselines that exist on most clear pricing pages — only complexity BEYOND these counts.
+const BASELINE = { plans: 4, options: 4, addOns: 3, meters: 4 };
+
+const isPaidPrice = (p?: string): boolean => {
+  const s = (p ?? "").trim();
+  return isRealPrice(s) && !/^free$/i.test(s);
 };
 
 /** Gentle, capped penalty for navigating a broad catalog of distinct services. */
@@ -127,13 +121,12 @@ export function pricingScore(
   }
 
   const w = CATEGORY_WEIGHTS[category] ?? CATEGORY_WEIGHTS.other;
-  const noun = CATEGORY_NOUN[category] ?? CATEGORY_NOUN.other;
   const deduct = (base: number, weight: number) => -Math.round(base * weight);
 
-  // Complexity signals. We track which ones are BREADTH-DRIVEN (scale naturally with offering many
-  // products: plans, in-plan options, add-ons) vs INTRINSIC (per-component unpredictability: metered
-  // density, hidden costs, sales gates). Only breadth-driven complexity is later forgiven by scope —
-  // many simple plans is fine, but "20 meters per component" stays a problem no matter the scope.
+  // We score COMPLEXITY BEYOND A BASELINE, not the mere existence of plans/usage/Enterprise. The
+  // dominant negative is the sales wall (no self-serve price). Signals split into BREADTH-DRIVEN
+  // (plans, options, add-ons — scale naturally with offering many products, so forgiven by scope)
+  // vs INTRINSIC (metered density, sales gates, sprawl — never hand-waved away by scope).
   const complexity: ScoreLine[] = [];
   let breadthMagnitude = 0;
   const pushBreadth = (line: ScoreLine) => {
@@ -141,60 +134,62 @@ export function pricingScore(
     breadthMagnitude += -line.points;
   };
 
-  const extraTiers = Math.max(0, tree.tiers.length - 1);
+  // Plans beyond a normal handful.
+  const extraTiers = Math.max(0, tree.tiers.length - BASELINE.plans);
   if (extraTiers > 0) {
     pushBreadth({
       label: `${tree.tiers.length} plans to compare`,
-      points: deduct(Math.min(30, extraTiers * 6), w.tiers),
+      points: deduct(Math.min(24, extraTiers * 5), w.tiers),
     });
   }
 
-  // Nested decisions WITHIN a plan (machine sizes, regions, support levels, …).
+  // Nested in-plan choices (machine sizes, regions, …) beyond a few.
   const optionChoices = tree.tiers.reduce(
     (sum, t) => sum + (t.options ?? []).reduce((s, g) => s + g.choices.length, 0),
     0,
   );
-  if (optionChoices > 0) {
+  const extraOptions = Math.max(0, optionChoices - BASELINE.options);
+  if (extraOptions > 0) {
     pushBreadth({
-      label: `${optionChoices} in-plan configuration choice${optionChoices > 1 ? "s" : ""}`,
-      points: deduct(Math.min(20, optionChoices * 2), w.options),
+      label: `${optionChoices} in-plan configuration choices`,
+      points: deduct(Math.min(20, extraOptions * 2), w.options),
     });
   }
 
-  // Metered billing — scales with HOW MANY things are metered (more meters = harder to predict).
+  // Add-ons beyond a few.
+  const extraAddOns = Math.max(0, tree.addOns.length - BASELINE.addOns);
+  if (extraAddOns > 0) {
+    pushBreadth({
+      label: `${tree.addOns.length} add-ons / extras`,
+      points: deduct(Math.min(16, extraAddOns * 4), w.addOns),
+    });
+  }
+
+  // Metered billing is NOT penalized for existing — only the complexity of MANY metered dimensions
+  // beyond a baseline, and lightly outside education.
   const meters = raw.usageDimensions.filter((d) => isRealPrice(d.price)).length;
-  const usageUnits = meters > 0 ? meters : tree.billingModel === "usage" || tree.billingModel === "hybrid" ? 2 : 0;
-  if (usageUnits > 0) {
-    const base = Math.min(40, 6 + usageUnits * 2);
-    const detail = meters > 0 ? `${meters} metered dimension${meters > 1 ? "s" : ""}` : "Usage-based billing";
-    const label =
-      w.usage <= 0.7
-        ? `${detail} (normal for ${noun})`
-        : w.usage >= 1.1
-          ? `${detail} (unusual for ${noun} — hard to predict)`
-          : `${detail} (harder to predict)`;
-    complexity.push({ label, points: deduct(base, w.usage) });
+  const excessMeters = Math.max(0, meters - BASELINE.meters);
+  if (excessMeters > 0) {
+    const pts = deduct(Math.min(30, excessMeters * 3), w.usage);
+    if (pts < 0) complexity.push({ label: `${meters} metered dimensions to track`, points: pts });
   }
 
-  if (tree.addOns.length > 0) {
-    pushBreadth({
-      label: `${tree.addOns.length} add-on${tree.addOns.length > 1 ? "s" : ""} / extras`,
-      points: deduct(Math.min(16, tree.addOns.length * 4), w.addOns),
-    });
+  // The sales wall — dominant negative. If there's no self-serve PAID price anywhere (only Free
+  // and/or "contact sales"), you can't know what you'll pay without a sales call. A contact-sales
+  // Enterprise tier sitting ON TOP of real self-serve pricing is normal and barely dings.
+  let selfServePaid = 0;
+  for (const t of tree.tiers) {
+    if (isPaidPrice(t.price)) selfServePaid++;
+    for (const g of t.options ?? []) for (const c of g.choices) if (isPaidPrice(c.price)) selfServePaid++;
   }
-
-  if (tree.hiddenCostSignals.length > 0) {
+  for (const d of raw.usageDimensions) if (isPaidPrice(d.price)) selfServePaid++;
+  if (selfServePaid === 0) {
     complexity.push({
-      label: `${tree.hiddenCostSignals.length} hidden-cost signal${tree.hiddenCostSignals.length > 1 ? "s" : ""}`,
-      points: deduct(Math.min(24, tree.hiddenCostSignals.length * 6), w.hiddenCosts),
+      label: "No self-serve pricing — real cost needs a sales call",
+      points: deduct(45, w.interaction),
     });
-  }
-
-  if (meta.requiresInteraction) {
-    complexity.push({
-      label: "Real price needs a sales call / calculator",
-      points: deduct(10, w.interaction),
-    });
+  } else if (meta.requiresInteraction) {
+    complexity.push({ label: "Top tier is contact-sales (Enterprise)", points: -4 });
   }
 
   // A page too large to read in full is itself sprawling pricing — and lowers our confidence that
