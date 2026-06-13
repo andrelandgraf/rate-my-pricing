@@ -76,7 +76,8 @@ app.onError((err, c) => {
 app.get("/", (c) => c.json({ service: "rate-my-pricing", status: "ok" }));
 
 const SORTS = {
-  worst: [asc(ratings.pricingScore), desc(ratings.agentScore)],
+  // Worst offenders: least clear pricing first, ties broken by worst agent-easiness.
+  worst: [asc(ratings.pricingScore), asc(ratings.agentScore)],
   best: [desc(ratings.pricingScore), desc(ratings.agentScore)],
   // Best for agents: highest agent-easiness first, ties broken by pricing clarity.
   agent: [desc(ratings.agentScore), desc(ratings.pricingScore)],
