@@ -7,6 +7,7 @@ import ScoreGauge from "@/components/ScoreGauge";
 import PricingTreeView from "@/components/PricingTreeView";
 import ScoreBreakdown from "@/components/ScoreBreakdown";
 import RegenerateButton from "@/components/RegenerateButton";
+import ShareButton from "@/components/ShareButton";
 import Confetti from "@/components/Confetti";
 import { fetchRating } from "@/lib/api";
 import { pricingLabel, agentLabel, hostOf, timeAgo } from "@/lib/format";
@@ -85,7 +86,12 @@ export default async function RatingPage({
                     <span>🛟</span> {rating.parseNotes}
                   </p>
                 )}
-                <div className="mt-5 flex items-center gap-3 justify-center lg:justify-start">
+                <div className="mt-5 flex flex-wrap items-center gap-3 justify-center lg:justify-start">
+                  <ShareButton
+                    title={rating.title}
+                    pricingScore={rating.pricingScore}
+                    agentScore={rating.agentScore}
+                  />
                   <RegenerateButton url={rating.url} updatedAt={rating.updatedAt} />
                   <span className="text-sm text-ink-soft">
                     model: <span className="font-mono">{rating.model || "—"}</span>
