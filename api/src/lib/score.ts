@@ -1,4 +1,4 @@
-import type { AgentOutput, FetchResult, Category } from "./types";
+import type { AgentOutput, FetchResult, Category, Extraction } from "./types";
 
 /** A single, human-readable line in a score's breakdown. */
 export type ScoreLine = { label: string; points: number };
@@ -26,15 +26,18 @@ function isRealPrice(p?: string): boolean {
  * and excluding marketing blurbs). The core confidence signal: zero means we couldn't actually
  * read the pricing, which must NOT be rewarded as "simple".
  */
-export function concretePriceCount(output: AgentOutput): number {
-  const { tree, raw } = output;
+export function extractionPriceCount(e: Extraction): number {
   let n = 0;
-  for (const t of tree.tiers) {
+  for (const t of e.tiers) {
     if (isRealPrice(t.price)) n++;
     for (const g of t.options ?? []) for (const c of g.choices) if (isRealPrice(c.price)) n++;
   }
-  for (const d of raw.usageDimensions) if (isRealPrice(d.price)) n++;
+  for (const d of e.usageDimensions) if (isRealPrice(d.price)) n++;
   return n;
+}
+
+export function concretePriceCount(output: AgentOutput): number {
+  return extractionPriceCount(output.raw);
 }
 
 /**

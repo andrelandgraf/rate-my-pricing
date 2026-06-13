@@ -19,6 +19,7 @@ export default defineConfig({
           RATE_LIMIT_GLOBAL_PER_HOUR: process.env.RATE_LIMIT_GLOBAL_PER_HOUR ?? "300",
           MASTRA_PROJECT_ID: process.env.MASTRA_PROJECT_ID ?? "",
           MASTRA_PLATFORM_ACCESS_TOKEN: process.env.MASTRA_PLATFORM_ACCESS_TOKEN ?? "",
+          FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY ?? "",
         },
       },
     },
