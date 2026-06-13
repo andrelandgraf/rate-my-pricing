@@ -17,6 +17,7 @@ export const ratings = pgTable(
   {
     id: serial("id").primaryKey(),
     slug: text("slug").notNull().unique(),
+    host: text("host").notNull().default(""),
     url: text("url").notNull(),
     title: text("title").notNull(),
     summary: text("summary").notNull().default(""),
@@ -33,6 +34,7 @@ export const ratings = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
+    hostIdx: index("ratings_host_idx").on(table.host),
     pricingScoreIdx: index("ratings_pricing_score_idx").on(table.pricingScore),
     agentScoreIdx: index("ratings_agent_score_idx").on(table.agentScore),
     createdAtIdx: index("ratings_created_at_idx").on(table.createdAt),

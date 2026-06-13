@@ -17,6 +17,17 @@ export function normalizeUrl(input: string): string {
   return u.toString();
 }
 
+/** The registrable host (lowercased, www-stripped) — the de-duplication key. */
+export function hostFromUrl(normalized: string): string {
+  return new URL(normalized).hostname.toLowerCase().replace(/^www\./, "");
+}
+
+/** True when the URL is just a host with no meaningful path (e.g. https://hey.com/). */
+export function isBareHostUrl(normalized: string): boolean {
+  const { pathname } = new URL(normalized);
+  return pathname === "" || pathname === "/";
+}
+
 /** Build a stable, human-readable, URL-safe slug from a normalized URL. */
 export function slugFromUrl(normalized: string): string {
   const u = new URL(normalized);

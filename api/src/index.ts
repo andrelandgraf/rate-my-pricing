@@ -8,7 +8,7 @@ import { parseEnv } from "@neondatabase/env/v1";
 import config from "../neon";
 import { ratings } from "./db/schema";
 import { generateRating } from "./lib/rate";
-import { normalizeUrl, slugFromUrl } from "./lib/slug";
+import { normalizeUrl, hostFromUrl } from "./lib/slug";
 import { assertSafeUrl, UnsafeUrlError } from "./lib/safeFetch";
 import { hitRateLimit } from "./lib/ratelimit";
 import type { Context } from "hono";
@@ -134,10 +134,10 @@ app.post("/rate", async (c) => {
   }
 
   let normalized: string;
-  let slug: string;
+  let host: string;
   try {
     normalized = normalizeUrl(body.url);
-    slug = slugFromUrl(normalized);
+    host = hostFromUrl(normalized);
   } catch {
     return c.json({ error: "invalid_url", message: "That doesn't look like a valid URL." }, 400);
   }
@@ -155,7 +155,13 @@ app.post("/rate", async (c) => {
     throw err;
   }
 
-  const [existing] = await db.select().from(ratings).where(eq(ratings.slug, slug)).limit(1);
+  // One rating per host: any URL on a host maps to that host's canonical rating.
+  const [existing] = await db
+    .select()
+    .from(ratings)
+    .where(eq(ratings.host, host))
+    .orderBy(asc(ratings.createdAt))
+    .limit(1);
   const age = existing ? Date.now() - new Date(existing.updatedAt).getTime() : Infinity;
 
   // Cached results are always free — only fresh generations are rate limited.
@@ -190,27 +196,37 @@ app.post("/rate", async (c) => {
 
   const { row } = await generateRating(normalized);
 
-  const [saved] = await db
-    .insert(ratings)
-    .values(row)
-    .onConflictDoUpdate({
-      target: ratings.slug,
-      set: {
-        url: row.url,
-        title: row.title,
-        summary: row.summary,
-        pricingScore: row.pricingScore,
-        agentScore: row.agentScore,
-        tree: row.tree,
-        breakdown: row.breakdown,
-        source: row.source,
-        model: row.model,
-        fetchOk: row.fetchOk,
-        parseNotes: row.parseNotes,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+  const updatedFields = {
+    host: row.host,
+    url: row.url,
+    title: row.title,
+    summary: row.summary,
+    pricingScore: row.pricingScore,
+    agentScore: row.agentScore,
+    tree: row.tree,
+    breakdown: row.breakdown,
+    source: row.source,
+    model: row.model,
+    fetchOk: row.fetchOk,
+    parseNotes: row.parseNotes,
+    updatedAt: new Date(),
+  };
+
+  let saved;
+  if (existing) {
+    // Update the host's canonical row in place — keep its slug so existing links stay valid.
+    [saved] = await db
+      .update(ratings)
+      .set(updatedFields)
+      .where(eq(ratings.id, existing.id))
+      .returning();
+  } else {
+    [saved] = await db
+      .insert(ratings)
+      .values(row)
+      .onConflictDoUpdate({ target: ratings.slug, set: updatedFields })
+      .returning();
+  }
 
   if (saved) prewarmSocialImages(saved.slug);
 

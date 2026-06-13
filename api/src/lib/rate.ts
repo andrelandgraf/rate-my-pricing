@@ -1,7 +1,7 @@
 import { fetchPricingContent } from "./fetch";
 import { parsePricing, MODEL } from "./parse";
 import { pricingScore, agentScore } from "./score";
-import { normalizeUrl, slugFromUrl } from "./slug";
+import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl } from "./slug";
 import { Sentry } from "../instrument";
 import type { NewRatingRow } from "../db/schema";
 
@@ -9,10 +9,9 @@ export type GeneratedRating = Omit<NewRatingRow, "id" | "createdAt" | "updatedAt
 
 /** Run the full agent pipeline for a URL and return a row ready to persist. */
 export async function generateRating(rawUrl: string): Promise<{ slug: string; row: GeneratedRating }> {
-  const url = normalizeUrl(rawUrl);
-  const slug = slugFromUrl(url);
+  let url = normalizeUrl(rawUrl);
 
-  const fetched = await fetchPricingContent(url);
+  let fetched = await fetchPricingContent(url);
   if (!fetched.ok) {
     Sentry.captureMessage(`agent could not fetch pricing page: ${url}`, {
       level: "warning",
@@ -20,7 +19,24 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       extra: { url, status: fetched.status },
     });
   }
-  const output = await parsePricing(fetched, url);
+  let output = await parsePricing(fetched, url);
+
+  // If a bare host has no pricing on its homepage, try the conventional /pricing path.
+  if (!output.meta.foundPricing && isBareHostUrl(url)) {
+    const pricingUrl = `${new URL(url).origin}/pricing`;
+    const f2 = await fetchPricingContent(pricingUrl);
+    if (f2.ok) {
+      const o2 = await parsePricing(f2, pricingUrl);
+      if (o2.meta.foundPricing) {
+        url = pricingUrl;
+        fetched = f2;
+        output = o2;
+      }
+    }
+  }
+
+  const slug = slugFromUrl(url);
+  const host = hostFromUrl(url);
 
   const pricing = pricingScore(output);
   const agent = agentScore(fetched, output);
@@ -28,12 +44,13 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
   const title =
     output.tree.productName && output.tree.productName !== "Unknown"
       ? output.tree.productName
-      : new URL(url).hostname;
+      : host;
 
   return {
     slug,
     row: {
       slug,
+      host,
       url,
       title,
       summary: output.tree.notes,
