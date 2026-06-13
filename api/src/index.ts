@@ -167,6 +167,12 @@ app.get("/ratings/:slug/history", async (c) => {
 });
 
 app.post("/rate", async (c) => {
+  // Reject oversized bodies before reading them (a URL payload is tiny — cap memory/DoS surface).
+  const contentLength = Number(c.req.header("content-length") ?? 0);
+  if (contentLength > 4096) {
+    return c.json({ error: "payload_too_large", message: "Request body too large." }, 413);
+  }
+
   let body: { url?: string; force?: boolean };
   try {
     body = await c.req.json();
@@ -176,6 +182,10 @@ app.post("/rate", async (c) => {
 
   if (!body.url || typeof body.url !== "string") {
     return c.json({ error: "missing_url", message: "Please provide a pricing page URL." }, 400);
+  }
+
+  if (body.url.length > 2048) {
+    return c.json({ error: "invalid_url", message: "That URL is too long." }, 400);
   }
 
   let normalized: string;
