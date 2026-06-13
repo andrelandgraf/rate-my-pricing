@@ -1,8 +1,8 @@
-import { fetchPricingContent } from "./fetch";
+import { resolvePricingContent } from "./discover";
 import { extract, analyze, buildOutput, MODEL } from "./parse";
 import { categorize } from "./categorize";
 import { pricingScore, agentScore, concretePriceCount } from "./score";
-import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl, prettyHostName } from "./slug";
+import { normalizeUrl, slugFromUrl, hostFromUrl, prettyHostName } from "./slug";
 
 // Reject generic page headings sometimes returned as a product name.
 const GENERIC_TITLE =
@@ -24,38 +24,27 @@ export type GeneratedRating = Omit<NewRatingRow, "id" | "createdAt" | "updatedAt
 export async function generateRating(
   rawUrl: string,
 ): Promise<{ slug: string; row: GeneratedRating; fetchStatus: number }> {
-  let url = normalizeUrl(rawUrl);
+  const submitted = normalizeUrl(rawUrl);
 
-  let fetched = await fetchPricingContent(url);
+  // Resolve the best pricing page (markdown-first; discover via llms.txt / sitemap / homepage
+  // links / explorer agent when the submitted URL isn't itself a pricing page).
+  const resolution = await resolvePricingContent(submitted);
+  const url = resolution.url;
+  const fetched = resolution.fetched;
+  const fetchStatus = fetched.status;
   if (!fetched.ok) {
     // Expected outcome (unreachable/blocked/no-such-page) — a target-page issue, not an app
     // error, so just log it; don't report to Sentry.
     console.warn(`[agent] could not fetch ${url} (status ${fetched.status})`);
   }
-  let fetchStatus = fetched.status;
   const host = hostFromUrl(url);
 
   // Categorize (full-page context → company name + category) and extract the pricing structure
   // in parallel — they're independent, so this adds no latency over extraction alone.
-  let [cat, extraction] = await Promise.all([
+  const [cat, extraction] = await Promise.all([
     categorize({ host, content: fetched.content }),
     extract(fetched, url),
   ]);
-
-  // If a bare host has no pricing on its homepage, try the conventional /pricing path.
-  if (!extraction.foundPricing && isBareHostUrl(url)) {
-    const pricingUrl = `${new URL(url).origin}/pricing`;
-    const f2 = await fetchPricingContent(pricingUrl);
-    if (f2.ok) {
-      const e2 = await extract(f2, pricingUrl);
-      if (e2.foundPricing) {
-        url = pricingUrl;
-        fetched = f2;
-        fetchStatus = f2.status;
-        extraction = e2;
-      }
-    }
-  }
 
   const slug = slugFromUrl(url);
   const title = deriveTitle([cat.companyName, extraction.productName], host);

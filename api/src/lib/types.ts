@@ -179,6 +179,18 @@ export const categorizationSchema = z.object({
 
 export type Categorization = z.infer<typeof categorizationSchema>;
 
+/** Explorer agent: pick the single most likely public pricing page from candidate links. */
+export const explorerSchema = z.object({
+  url: z
+    .string()
+    .describe(
+      "The single candidate URL most likely to be the public pricing/plans page. Must be copied " +
+        "EXACTLY from the provided candidates. Empty string if none of them is a pricing page.",
+    ),
+});
+
+export type ExplorerChoice = z.infer<typeof explorerSchema>;
+
 export type FetchResult = {
   ok: boolean;
   status: number;

@@ -39,45 +39,65 @@ export function htmlToText(html: string): string {
   return text.trim();
 }
 
+/** Raw fetch (no stripping) for a URL — used by the discovery step for llms.txt/sitemap/anchors. */
+export async function fetchRaw(
+  url: string,
+  accept = "text/html,application/xhtml+xml,text/plain",
+): Promise<string | null> {
+  const res = await timedFetch(url, { accept });
+  if (!res?.ok) return null;
+  try {
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Try hard to get readable content for a pricing page.
- * Strategy: prefer markdown (Accept header, then `.md` suffix), fall back to HTML-as-text.
+ * Strategy: prefer markdown — (1) content negotiation, then (2) the `.md` convention even if the
+ * server ignored Accept and returned HTML — and only (3) fall back to HTML-as-text last.
  */
 export async function fetchPricingContent(normalizedUrl: string): Promise<FetchResult> {
   const u = new URL(normalizedUrl);
+  let htmlFallback: FetchResult | null = null;
 
   // 1. Ask for markdown directly.
   const mdRes = await timedFetch(normalizedUrl, { accept: "text/markdown, text/x-markdown" });
   if (mdRes?.ok) {
     const ct = mdRes.headers.get("content-type") ?? "";
     const body = await mdRes.text();
-    if (/markdown/i.test(ct) && !looksLikeHtml(body)) {
+    if (!looksLikeHtml(body) && (/markdown|text\/plain/i.test(ct) || body.trim())) {
       return clamp({ ok: true, status: mdRes.status, source: "markdown", content: body, finalUrl: mdRes.url });
     }
-    // Keep the HTML body around as a fallback so we don't refetch.
+    // Server ignored Accept and returned HTML — keep it as a fallback, but still try `.md` next.
     if (looksLikeHtml(body)) {
-      return clamp({ ok: true, status: mdRes.status, source: "html", content: htmlToText(body), finalUrl: mdRes.url });
+      htmlFallback = clamp({
+        ok: true,
+        status: mdRes.status,
+        source: "html",
+        content: htmlToText(body),
+        finalUrl: mdRes.url,
+      });
     }
-    return clamp({ ok: true, status: mdRes.status, source: "markdown", content: body, finalUrl: mdRes.url });
   }
 
-  // 2. Try the `.md` convention (works for many docs-style sites).
+  // 2. Try the `.md` convention (works for many docs/markdown-first sites, e.g. /pricing.md).
   if (!u.pathname.endsWith(".md")) {
     const mdUrl = new URL(normalizedUrl);
     mdUrl.pathname = `${mdUrl.pathname.replace(/\/$/, "")}.md`;
     const altRes = await timedFetch(mdUrl.toString(), { accept: "text/markdown" });
     if (altRes?.ok) {
       const body = await altRes.text();
-      if (!looksLikeHtml(body)) {
+      if (!looksLikeHtml(body) && body.trim()) {
         return clamp({ ok: true, status: altRes.status, source: "markdown", content: body, finalUrl: altRes.url });
       }
     }
   }
 
-  // 3. Plain HTML, stripped to text.
-  const htmlRes = await timedFetch(normalizedUrl, {
-    accept: "text/html,application/xhtml+xml",
-  });
+  // 3. HTML fallback (from step 1 if we have it, else fetch fresh).
+  if (htmlFallback) return htmlFallback;
+  const htmlRes = await timedFetch(normalizedUrl, { accept: "text/html,application/xhtml+xml" });
   if (htmlRes?.ok) {
     const body = await htmlRes.text();
     return clamp({ ok: true, status: htmlRes.status, source: "html", content: htmlToText(body), finalUrl: htmlRes.url });
@@ -85,7 +105,7 @@ export async function fetchPricingContent(normalizedUrl: string): Promise<FetchR
 
   return {
     ok: false,
-    status: htmlRes?.status ?? 0,
+    status: htmlRes?.status ?? mdRes?.status ?? 0,
     source: "none",
     content: "",
     finalUrl: normalizedUrl,
