@@ -21,9 +21,10 @@ function isRealPrice(p?: string): boolean {
 }
 
 /**
- * How many genuinely-priced items we actually mapped (real numeric/Free prices, excluding
- * marketing blurbs). The core confidence signal: near-zero means we couldn't really read the
- * pricing — which must NOT be rewarded as "simple".
+ * How many genuinely-priced PRIMARY items we mapped — real numeric/Free prices on plans, in-plan
+ * options, or metered rates (NOT add-ons, which can't stand in for a pricing model on their own,
+ * and excluding marketing blurbs). The core confidence signal: zero means we couldn't actually
+ * read the pricing, which must NOT be rewarded as "simple".
  */
 export function concretePriceCount(output: AgentOutput): number {
   const { tree, raw } = output;
@@ -32,7 +33,6 @@ export function concretePriceCount(output: AgentOutput): number {
     if (isRealPrice(t.price)) n++;
     for (const g of t.options ?? []) for (const c of g.choices) if (isRealPrice(c.price)) n++;
   }
-  for (const a of tree.addOns) if (isRealPrice(a.price)) n++;
   for (const d of raw.usageDimensions) if (isRealPrice(d.price)) n++;
   return n;
 }
