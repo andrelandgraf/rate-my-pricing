@@ -178,16 +178,14 @@ export function pricingScore(
     if (pts < 0) complexity.push({ label: `${meters} metered dimensions to track`, points: pts });
   }
 
-  // Mixed pricing models — pure flat OR pure usage is clear; COMBINING fixed plans + usage +
-  // add-ons means computing base + variable across axes, which is genuinely harder to predict.
-  const mechanisms: string[] = [];
-  if (paidTiers >= 1) mechanisms.push("fixed plans");
-  if (meters >= 1) mechanisms.push("usage");
-  if (tree.addOns.length >= 1) mechanisms.push("add-ons");
-  if (mechanisms.length >= 2) {
+  // A clear flat/tiered plan is a PREDICTABLE ANCHOR — that's good, not a penalty. The real
+  // clarity killer is PURE usage with no flat plan at all: you can't even estimate a floor, and it
+  // gets worse the more metered dimensions stack on top.
+  if (meters >= 1 && paidTiers === 0) {
+    const base = 14 + Math.min(12, Math.max(0, meters - BASELINE.meters) * 2);
     complexity.push({
-      label: `Mixes ${mechanisms.join(" + ")} pricing`,
-      points: deduct((mechanisms.length - 1) * 12, w.usage),
+      label: "Pure usage pricing — no flat plan to anchor the bill",
+      points: deduct(base, w.usage),
     });
   }
 
