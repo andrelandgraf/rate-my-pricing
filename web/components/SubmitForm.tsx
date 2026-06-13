@@ -17,7 +17,13 @@ const STEPS = [
   "Handing out scores 🏅",
 ];
 
-export default function SubmitForm({ autofocus = false }: { autofocus?: boolean }) {
+export default function SubmitForm({
+  autofocus = false,
+  onQueryChange,
+}: {
+  autofocus?: boolean;
+  onQueryChange?: (query: string) => void;
+}) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,9 +68,12 @@ export default function SubmitForm({ autofocus = false }: { autofocus?: boolean 
           <input
             ref={inputRef}
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              onQueryChange?.(e.target.value);
+            }}
             disabled={loading}
-            placeholder="paste a pricing page url…"
+            placeholder="paste a url to rate — or type to filter…"
             className="w-full bg-transparent outline-none text-lg font-medium placeholder:text-ink-soft/60 font-mono"
             inputMode="url"
             autoComplete="off"
