@@ -10,7 +10,7 @@ export default function RatingCard({ rating, rank }: { rating: RatingSummary; ra
   return (
     <Link
       href={`/${rating.slug}`}
-      className="card hover-pop p-4 flex items-center gap-4 group"
+      className="card hover-pop p-4 flex items-center gap-3 sm:gap-4 group min-w-0"
     >
       <div
         className={`shrink-0 w-11 h-11 rounded-xl ink-border ${accent} grid place-items-center font-display font-extrabold text-lg`}

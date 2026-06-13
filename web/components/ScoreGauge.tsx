@@ -8,18 +8,15 @@ type Props = {
   label: string;
   caption: string;
   emoji: string;
-  size?: number;
   animate?: boolean;
 };
 
-export default function ScoreGauge({
-  score,
-  label,
-  caption,
-  emoji,
-  size = 168,
-  animate = true,
-}: Props) {
+// Drawn in a 200x200 viewBox so the SVG scales fluidly to its (responsive) container.
+const STROKE = 16;
+const R = 84;
+const C = 2 * Math.PI * R;
+
+export default function ScoreGauge({ score, label, caption, emoji, animate = true }: Props) {
   const [shown, setShown] = useState(animate ? 0 : score);
 
   useEffect(() => {
@@ -40,53 +37,36 @@ export default function ScoreGauge({
     return () => cancelAnimationFrame(raf);
   }, [score, animate]);
 
-  const stroke = 13;
-  const r = (size - stroke) / 2 - 3;
-  const c = 2 * Math.PI * r;
-  const dash = (shown / 100) * c;
+  const dash = (shown / 100) * C;
   const color = scoreColor(shown);
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+      <div className="relative w-[132px] h-[132px] sm:w-[168px] sm:h-[168px]">
+        <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90">
+          <circle cx="100" cy="100" r={R} fill="#fffdf7" stroke="#1c1a17" strokeWidth={STROKE + 6} />
+          <circle cx="100" cy="100" r={R} fill="none" stroke="rgba(28,26,23,0.12)" strokeWidth={STROKE} />
           <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="#fffdf7"
-            stroke="#1c1a17"
-            strokeWidth={stroke + 6}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke="rgba(28,26,23,0.12)"
-            strokeWidth={stroke}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
+            cx="100"
+            cy="100"
+            r={R}
             fill="none"
             stroke={color}
-            strokeWidth={stroke}
+            strokeWidth={STROKE}
             strokeLinecap="round"
-            strokeDasharray={`${dash} ${c}`}
+            strokeDasharray={`${dash} ${C}`}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-display font-extrabold" style={{ color }}>
+          <span className="text-3xl sm:text-4xl font-display font-extrabold" style={{ color }}>
             {shown}
           </span>
-          <span className="text-xl leading-none">{emoji}</span>
+          <span className="text-lg sm:text-xl leading-none">{emoji}</span>
         </div>
       </div>
       <div className="text-center">
-        <div className="font-display font-extrabold text-lg leading-tight">{label}</div>
-        <div className="text-sm text-ink-soft font-medium">{caption}</div>
+        <div className="font-display font-extrabold text-base sm:text-lg leading-tight">{label}</div>
+        <div className="text-xs sm:text-sm text-ink-soft font-medium">{caption}</div>
       </div>
     </div>
   );
