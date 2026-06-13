@@ -38,13 +38,15 @@ function Node({ node, depth }: { node: TreeNode; depth: number }) {
   if (node.kind === "feature" || node.kind === "limit") {
     return (
       <div className="flex items-baseline justify-between gap-3 py-1 text-sm">
-        <span className="flex items-center gap-2 text-ink-soft">
-          <span className={node.kind === "feature" ? "text-lime" : "text-bubble"}>
+        <span className="flex items-center gap-2 text-ink-soft min-w-0">
+          <span className={`shrink-0 ${node.kind === "feature" ? "text-lime" : "text-bubble"}`}>
             {node.kind === "feature" ? "✦" : "•"}
           </span>
-          <span>{node.label}</span>
+          <span className="min-w-0 break-words">{node.label}</span>
         </span>
-        {node.value && <span className="font-semibold text-right shrink-0">{node.value}</span>}
+        {node.value && (
+          <span className="font-semibold text-right min-w-0 break-words">{node.value}</span>
+        )}
       </div>
     );
   }
@@ -84,7 +86,7 @@ function Node({ node, depth }: { node: TreeNode; depth: number }) {
         </span>
 
         {node.value && (
-          <span className="shrink-0 font-display font-extrabold text-right whitespace-nowrap">
+          <span className="min-w-0 max-w-[50%] break-words font-display font-extrabold text-right">
             {node.value}
           </span>
         )}
