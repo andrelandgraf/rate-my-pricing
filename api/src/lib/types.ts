@@ -9,8 +9,18 @@ export const limitSchema = z.object({
   value: z.string().describe("The value or cap, e.g. 'Unlimited', '10,000 / mo'"),
 });
 
+export const optionChoiceSchema = z.object({
+  label: z.string().describe("The choice as shown, e.g. 'Small', '2 vCPU / 4GB', 'US-East'"),
+  price: z.string().describe("Price for this choice as shown, '' if unknown"),
+});
+
+export const optionGroupSchema = z.object({
+  name: z.string().describe("What is being chosen within the plan, e.g. 'Instance size', 'Region'"),
+  choices: z.array(optionChoiceSchema).describe("The selectable choices for this option"),
+});
+
 export const tierSchema = z.object({
-  name: z.string().describe("Tier name, e.g. 'Free', 'Pro', 'Enterprise'"),
+  name: z.string().describe("Plan name a customer picks as their main subscription, e.g. 'Free', 'Pro'"),
   price: z.string().describe("Headline price as shown, e.g. '$20', 'Free', 'Custom'"),
   period: z
     .string()
@@ -18,12 +28,21 @@ export const tierSchema = z.object({
   highlighted: z.boolean().describe("True if the page marks this as the recommended/popular tier"),
   features: z.array(z.string()).describe("Notable features or inclusions listed for this tier"),
   limits: z.array(limitSchema).describe("Quantitative limits / quotas for this tier"),
+  options: z
+    .array(optionGroupSchema)
+    .describe(
+      "Configurable choices WITHIN this plan that change the price (instance/machine sizes, " +
+        "regions, support levels, billing period). These are sub-decisions of the plan, NOT " +
+        "separate plans. Empty if the plan has a single fixed configuration.",
+    ),
 });
 
 export const addOnSchema = z.object({
   name: z.string(),
   price: z.string().describe("Price as shown or '' if unknown"),
-  description: z.string().describe("Short description of the add-on / package"),
+  description: z
+    .string()
+    .describe("Optional paid extra added ON TOP of a plan (not a plan itself, not metered usage)"),
 });
 
 export const pricingTreeSchema = z.object({
@@ -115,14 +134,23 @@ export const CATEGORIES = ["devtools", "clouds", "ai-labs", "saas", "educational
 export type Category = (typeof CATEGORIES)[number];
 
 export const categorizationSchema = z.object({
+  companyName: z
+    .string()
+    .describe(
+      "The brand/company or product name as a human would say it (e.g. the name in the logo or " +
+        "title). Never a page heading like 'Pricing' or 'Plans'. If unclear, derive from the domain.",
+    ),
   category: z
     .enum(CATEGORIES)
     .describe(
-      "The single best-fit category: devtools (developer tools & platforms builders build with or " +
-        "deploy to), clouds (hyperscalers / broad data platforms: AWS, GCP, Azure, Snowflake, " +
-        "Databricks), ai-labs (foundation-model providers only: OpenAI, Anthropic, Mistral), saas " +
-        "(general business/consumer apps not aimed at developers: link-in-bio, productivity, CRM, " +
-        "newsletters), educational (courses, bootcamps, learning), other (none of the above).",
+      "The single best-fit category. devtools: developer tools & platforms that engineers build " +
+        "with or deploy to (app hosting/PaaS, databases, observability, APIs/SDKs, auth & payment " +
+        "infrastructure, CI/CD, AI dev frameworks, coding tools). clouds: broad hyperscalers and " +
+        "large general infrastructure or big-data platforms. ai-labs: providers whose core product " +
+        "is a frontier/foundation model they train and serve (not AI tooling or apps). saas: " +
+        "general business or consumer software apps not primarily aimed at developers (productivity, " +
+        "collaboration, marketing, CRM, link-in-bio, newsletters). educational: courses, bootcamps, " +
+        "and learning platforms. other: none of the above.",
     ),
 });
 

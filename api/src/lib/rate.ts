@@ -1,17 +1,20 @@
 import { fetchPricingContent } from "./fetch";
-import { extract, analyze, buildOutput, extractionFacts, MODEL } from "./parse";
+import { extract, analyze, buildOutput, MODEL } from "./parse";
 import { categorize } from "./categorize";
 import { pricingScore, agentScore } from "./score";
 import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl, prettyHostName } from "./slug";
 
-// Reject generic page headings the parser sometimes returns as a product name.
+// Reject generic page headings sometimes returned as a product name.
 const GENERIC_TITLE =
-  /^\s*(pricing|plans?|pricing\s*(&|and|\+)?\s*plans?|plans?\s*(&|and)\s*pricing|our\s+pricing|pricing\s+page|subscriptions?|packages?|pricing\s+plans?)\s*$/i;
+  /^\s*(pricing|plans?|pricing\s*(&|and|\+)?\s*plans?|plans?\s*(&|and)\s*pricing|our\s+pricing|pricing\s+page|subscriptions?|packages?|pricing\s+plans?|unknown)\s*$/i;
 
-function deriveTitle(productName: string | undefined, host: string): string {
-  const name = (productName ?? "").trim();
-  if (!name || name === "Unknown" || GENERIC_TITLE.test(name)) return prettyHostName(host);
-  return name;
+/** First non-empty, non-generic candidate name; otherwise a prettified host. */
+function deriveTitle(candidates: (string | undefined)[], host: string): string {
+  for (const c of candidates) {
+    const name = (c ?? "").trim();
+    if (name && !GENERIC_TITLE.test(name)) return name;
+  }
+  return prettyHostName(host);
 }
 import type { NewRatingRow } from "../db/schema";
 
@@ -27,9 +30,14 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
     // error, so just log it; don't report to Sentry.
     console.warn(`[agent] could not fetch ${url} (status ${fetched.status})`);
   }
+  const host = hostFromUrl(url);
 
-  // Step 1 — extract the clean, injection-free pricing facts.
-  let extraction = await extract(fetched, url);
+  // Categorize (full-page context → company name + category) and extract the pricing structure
+  // in parallel — they're independent, so this adds no latency over extraction alone.
+  let [cat, extraction] = await Promise.all([
+    categorize({ host, content: fetched.content }),
+    extract(fetched, url),
+  ]);
 
   // If a bare host has no pricing on its homepage, try the conventional /pricing path.
   if (!extraction.foundPricing && isBareHostUrl(url)) {
@@ -46,16 +54,25 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
   }
 
   const slug = slugFromUrl(url);
-  const host = hostFromUrl(url);
-  const title = deriveTitle(extraction.productName, host);
+  const title = deriveTitle([cat.companyName, extraction.productName], host);
+  const category = cat.category;
 
-  // Categorize from the clean facts, THEN analyze + score with category context.
-  const category = await categorize({ title, host, facts: extractionFacts(extraction) });
+  // Analyze + score from the CLEAN structure, with category context.
   const analysis = await analyze(extraction, category);
-  const output = buildOutput(extraction, analysis);
+  const output = buildOutput(extraction, analysis, title);
 
   const pricing = pricingScore(output, category);
   const agent = agentScore(fetched, output);
+
+  // Only list entries where we actually mapped a usable pricing structure.
+  const usableStructure =
+    extraction.tiers.length > 0 || extraction.usageDimensions.length > 0;
+  const listed = output.meta.foundPricing && usableStructure;
+  const parseNotes = !output.meta.foundPricing
+    ? "No concrete pricing was found on the page."
+    : !usableStructure
+      ? "The agent couldn't read this page's real pricing (it may be rendered client-side)."
+      : "";
 
   return {
     slug,
@@ -74,10 +91,8 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
       source: fetched.source,
       model: MODEL,
       fetchOk: fetched.ok,
-      listed: output.meta.foundPricing,
-      parseNotes: output.meta.foundPricing
-        ? ""
-        : "No concrete pricing was found on the page.",
+      listed,
+      parseNotes,
     },
   };
 }

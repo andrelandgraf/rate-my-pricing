@@ -19,6 +19,9 @@ export const CATEGORY_EMOJI: Record<Category, string> = {
 
 export type Limit = { label: string; value: string };
 
+export type OptionChoice = { label: string; price: string };
+export type OptionGroup = { name: string; choices: OptionChoice[] };
+
 export type Tier = {
   name: string;
   price: string;
@@ -26,6 +29,7 @@ export type Tier = {
   highlighted: boolean;
   features: string[];
   limits: Limit[];
+  options?: OptionGroup[];
 };
 
 export type AddOn = { name: string; price: string; description: string };

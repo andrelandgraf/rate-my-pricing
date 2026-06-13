@@ -138,12 +138,17 @@ export async function analyze(extraction: Extraction, category: Category): Promi
   };
 }
 
-// Merge the clean facts + analysis into the stored AgentOutput shape.
-export function buildOutput(extraction: Extraction, analysis: Analysis): AgentOutput {
+// Merge the clean facts + analysis into the stored AgentOutput shape. `productName` is the
+// company name resolved by the (full-context) categorizer; falls back to the extractor's guess.
+export function buildOutput(
+  extraction: Extraction,
+  analysis: Analysis,
+  productName?: string,
+): AgentOutput {
   return {
     raw: extraction,
     tree: {
-      productName: extraction.productName,
+      productName: productName || extraction.productName,
       currency: extraction.currency,
       tiers: extraction.tiers,
       addOns: extraction.addOns,
@@ -156,16 +161,4 @@ export function buildOutput(extraction: Extraction, analysis: Analysis): AgentOu
       foundPricing: extraction.foundPricing,
     },
   };
-}
-
-/** Short, factual blurb (no sentiment) to help the categorizer key off real structure. */
-export function extractionFacts(extraction: Extraction): string {
-  const parts = [`${extraction.tiers.length} plan(s)`];
-  if (extraction.usageDimensions.length) {
-    parts.push(
-      `metered: ${extraction.usageDimensions.slice(0, 6).map((d) => d.name).join(", ")}`,
-    );
-  }
-  if (extraction.addOns.length) parts.push(`${extraction.addOns.length} add-on(s)`);
-  return parts.join("; ");
 }

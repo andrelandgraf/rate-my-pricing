@@ -1,6 +1,14 @@
 import type { Extraction, PricingTree } from "./types";
 
-export type TreeKind = "root" | "group" | "tier" | "usage" | "addon" | "feature" | "limit";
+export type TreeKind =
+  | "root"
+  | "group"
+  | "tier"
+  | "option"
+  | "usage"
+  | "addon"
+  | "feature"
+  | "limit";
 
 export type TreeNode = {
   id: string;
@@ -44,6 +52,18 @@ export function buildPricingTree(
         value: join(tier.price, tier.period),
         highlighted: tier.highlighted,
         children: [
+          ...(tier.options ?? []).map((g, j) => ({
+            id: `tier-${i}-opt-${j}`,
+            kind: "option" as const,
+            label: g.name,
+            meta: `${g.choices.length} choice${g.choices.length === 1 ? "" : "s"}`,
+            children: g.choices.map((c, k) => ({
+              id: `tier-${i}-opt-${j}-c-${k}`,
+              kind: "limit" as const,
+              label: c.label,
+              value: c.price,
+            })),
+          })),
           ...tier.limits.map((l, j) => ({
             id: `tier-${i}-limit-${j}`,
             kind: "limit" as const,

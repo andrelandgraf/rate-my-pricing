@@ -7,6 +7,7 @@ const KIND_ACCENT: Record<TreeKind, string> = {
   root: "bg-marigold",
   group: "bg-paper-2",
   tier: "bg-sky",
+  option: "bg-bubble",
   usage: "bg-coral",
   addon: "bg-grape",
   feature: "bg-lime",
@@ -16,6 +17,7 @@ const KIND_ACCENT: Record<TreeKind, string> = {
 const KIND_EMOJI: Partial<Record<TreeKind, string>> = {
   group: "",
   tier: "🪜",
+  option: "🔀",
   usage: "📊",
   addon: "🧩",
   feature: "✦",

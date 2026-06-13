@@ -18,6 +18,7 @@ const total = (items: ScoreLine[]) => items.reduce((sum, i) => sum + i.points, 0
  */
 type PricingWeights = {
   tiers: number;
+  options: number;
   usage: number;
   addOns: number;
   hiddenCosts: number;
@@ -25,12 +26,12 @@ type PricingWeights = {
 };
 
 const CATEGORY_WEIGHTS: Record<Category, PricingWeights> = {
-  devtools: { tiers: 1.0, usage: 0.5, addOns: 0.8, hiddenCosts: 0.6, interaction: 0.8 },
-  "ai-labs": { tiers: 0.9, usage: 0.4, addOns: 0.9, hiddenCosts: 0.5, interaction: 0.8 },
-  clouds: { tiers: 1.0, usage: 0.8, addOns: 1.0, hiddenCosts: 1.0, interaction: 0.9 },
-  saas: { tiers: 1.0, usage: 1.3, addOns: 1.0, hiddenCosts: 1.2, interaction: 1.1 },
-  educational: { tiers: 1.0, usage: 1.6, addOns: 1.1, hiddenCosts: 1.4, interaction: 1.2 },
-  other: { tiers: 1.0, usage: 1.0, addOns: 1.0, hiddenCosts: 1.0, interaction: 1.0 },
+  devtools: { tiers: 1.0, options: 0.6, usage: 0.5, addOns: 0.8, hiddenCosts: 0.6, interaction: 0.8 },
+  "ai-labs": { tiers: 0.9, options: 0.6, usage: 0.4, addOns: 0.9, hiddenCosts: 0.5, interaction: 0.8 },
+  clouds: { tiers: 1.0, options: 0.7, usage: 0.8, addOns: 1.0, hiddenCosts: 1.0, interaction: 0.9 },
+  saas: { tiers: 1.0, options: 1.1, usage: 1.3, addOns: 1.0, hiddenCosts: 1.2, interaction: 1.1 },
+  educational: { tiers: 1.0, options: 1.2, usage: 1.6, addOns: 1.1, hiddenCosts: 1.4, interaction: 1.2 },
+  other: { tiers: 1.0, options: 1.0, usage: 1.0, addOns: 1.0, hiddenCosts: 1.0, interaction: 1.0 },
 };
 
 const CATEGORY_NOUN: Record<Category, string> = {
@@ -63,6 +64,19 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
     };
   }
 
+  // "Found pricing" but nothing concrete to map (no plans, no metered rates) — usually a
+  // JS-rendered page we couldn't read. Don't reward an empty structure with a high score.
+  const usableStructure = tree.tiers.length > 0 || output.raw.usageDimensions.length > 0;
+  if (!usableStructure) {
+    return {
+      score: 12,
+      items: [
+        { label: "Base score", points: 100 },
+        { label: "Couldn't map a clear pricing structure from the page", points: -88 },
+      ],
+    };
+  }
+
   const w = CATEGORY_WEIGHTS[category] ?? CATEGORY_WEIGHTS.other;
   const noun = CATEGORY_NOUN[category] ?? CATEGORY_NOUN.other;
   const deduct = (base: number, weight: number) => -Math.round(base * weight);
@@ -74,6 +88,19 @@ export function pricingScore(output: AgentOutput, category: Category = "other"):
     items.push({
       label: `${tree.tiers.length} plans to compare`,
       points: deduct(Math.min(30, extraTiers * 6), w.tiers),
+    });
+  }
+
+  // Nested decisions WITHIN a plan (machine sizes, regions, support levels, …) — each extra
+  // choice is another fork in the pricing decision tree.
+  const optionChoices = tree.tiers.reduce(
+    (sum, t) => sum + (t.options ?? []).reduce((s, g) => s + g.choices.length, 0),
+    0,
+  );
+  if (optionChoices > 0) {
+    items.push({
+      label: `${optionChoices} in-plan configuration choice${optionChoices > 1 ? "s" : ""}`,
+      points: deduct(Math.min(20, optionChoices * 2), w.options),
     });
   }
 
@@ -135,8 +162,12 @@ export function agentScore(fetched: FetchResult, output: AgentOutput): ScoreResu
     items.push({ label: "Read from raw HTML (no markdown)", points: -15 });
   }
 
+  const usableStructure =
+    output.tree.tiers.length > 0 || output.raw.usageDimensions.length > 0;
   if (!output.meta.foundPricing) {
     items.push({ label: "No concrete pricing to parse", points: -40 });
+  } else if (!usableStructure) {
+    items.push({ label: "Couldn't read the real pricing (likely JS-rendered)", points: -40 });
   }
 
   if (output.meta.requiresInteraction) {
