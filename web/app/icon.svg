@@ -1,4 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <rect x="3" y="3" width="58" height="58" rx="15" fill="#ffb22e" stroke="#1c1a17" stroke-width="4"/>
-  <text x="32" y="35" font-size="36" text-anchor="middle" dominant-baseline="central">=¸</text>
+  <!-- wings -->
+  <path d="M30 34 C 17 20, 3 27, 10 41 C 17 34, 24 34, 30 39 Z" fill="#fffdf7" stroke="#1c1a17" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M34 34 C 47 20, 61 27, 54 41 C 47 34, 40 34, 34 39 Z" fill="#fffdf7" stroke="#1c1a17" stroke-width="3" stroke-linejoin="round"/>
+  <!-- coin -->
+  <circle cx="32" cy="34" r="15" fill="#7bd640" stroke="#1c1a17" stroke-width="3"/>
+  <text x="32" y="35" font-family="Verdana, Geneva, sans-serif" font-size="22" font-weight="bold" fill="#1c1a17" text-anchor="middle" dominant-baseline="central">$</text>
 </svg>
