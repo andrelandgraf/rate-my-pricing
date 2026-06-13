@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /** Shown when the rating API is unreachable — friendlier than a fake "empty leaderboard". */
 export default function Maintenance() {
   return (
@@ -14,9 +16,9 @@ export default function Maintenance() {
         safe; give it a moment and refresh.
       </p>
       <div className="mt-8">
-        <a href="/" className="btn-pop bg-coral text-ink px-7 py-3 text-lg inline-block">
+        <Link href="/" className="btn-pop bg-coral text-ink px-7 py-3 text-lg inline-block">
           ↻ Try again
-        </a>
+        </Link>
       </div>
     </section>
   );
