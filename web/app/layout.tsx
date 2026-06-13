@@ -31,6 +31,12 @@ export const metadata: Metadata = {
       "An AI agent reads pricing pages and scores how clear they are. Find the worst offenders.",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rate My Pricing",
+    description:
+      "An AI agent reads pricing pages and scores how clear they are. Find the worst offenders.",
+  },
 };
 
 export default function RootLayout({
