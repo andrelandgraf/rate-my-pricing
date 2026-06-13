@@ -2,7 +2,6 @@ import { fetchPricingContent } from "./fetch";
 import { parsePricing, MODEL } from "./parse";
 import { pricingScore, agentScore } from "./score";
 import { normalizeUrl, slugFromUrl, hostFromUrl, isBareHostUrl } from "./slug";
-import { Sentry } from "../instrument";
 import type { NewRatingRow } from "../db/schema";
 
 export type GeneratedRating = Omit<NewRatingRow, "id" | "createdAt" | "updatedAt" | "views">;
@@ -13,11 +12,9 @@ export async function generateRating(rawUrl: string): Promise<{ slug: string; ro
 
   let fetched = await fetchPricingContent(url);
   if (!fetched.ok) {
-    Sentry.captureMessage(`agent could not fetch pricing page: ${url}`, {
-      level: "warning",
-      tags: { component: "agent", phase: "fetch" },
-      extra: { url, status: fetched.status },
-    });
+    // Expected outcome (unreachable/blocked/no-such-page) — a target-page issue, not an app
+    // error, so just log it; don't report to Sentry.
+    console.warn(`[agent] could not fetch ${url} (status ${fetched.status})`);
   }
   let output = await parsePricing(fetched, url);
 
