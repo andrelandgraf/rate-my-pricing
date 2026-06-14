@@ -59,7 +59,7 @@ function Node({ node, depth }: { node: TreeNode; depth: number }) {
         aria-expanded={hasChildren ? open : undefined}
         className={`group w-full text-left card ${
           node.kind === "root" ? "card-lg p-4 sm:p-5" : "p-3 sm:p-3.5"
-        } ${node.highlighted ? "ring-0" : ""} ${hasChildren ? "cursor-pointer hover:-translate-y-0.5 transition-transform" : "cursor-default"} flex items-center gap-3`}
+        } ${node.highlighted ? "ring-0" : ""} ${hasChildren ? "cursor-pointer hover:-translate-y-0.5 transition-transform" : "cursor-default"} flex ${node.description ? "items-start" : "items-center"} gap-3`}
       >
         <span
           className={`shrink-0 ink-border rounded-lg w-8 h-8 flex items-center justify-center font-display font-extrabold ${
@@ -82,10 +82,19 @@ function Node({ node, depth }: { node: TreeNode; depth: number }) {
             {node.meta && (
               <span className="chip bg-paper-2 text-xs font-mono">{node.meta}</span>
             )}
+            {/* When a node carries prose, keep its price inline so the description gets the full width below. */}
+            {node.value && node.description && (
+              <span className="font-display font-extrabold text-coral break-words">{node.value}</span>
+            )}
           </span>
+          {node.description && (
+            <span className="mt-1.5 block text-sm font-medium text-ink-soft break-words whitespace-pre-line">
+              {node.description}
+            </span>
+          )}
         </span>
 
-        {node.value && (
+        {node.value && !node.description && (
           <span className="min-w-0 max-w-[50%] break-words font-display font-extrabold text-right">
             {node.value}
           </span>

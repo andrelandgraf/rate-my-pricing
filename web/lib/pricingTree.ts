@@ -14,7 +14,10 @@ export type TreeNode = {
   id: string;
   label: string;
   value?: string;
+  /** Short tag rendered as a pill chip (e.g. "3 choices"). Keep it terse. */
   meta?: string;
+  /** Free-form prose rendered as a wrapped paragraph (e.g. an add-on description). */
+  description?: string;
   kind: TreeKind;
   highlighted?: boolean;
   children?: TreeNode[];
@@ -107,7 +110,7 @@ export function buildPricingTree(
         kind: "addon",
         label: a.name,
         value: a.price || undefined,
-        meta: a.description || undefined,
+        description: a.description || undefined,
       })),
     });
   }
