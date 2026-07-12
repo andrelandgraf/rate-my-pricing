@@ -4,11 +4,21 @@ import { explorerSchema, type FetchResult } from "./types";
 
 const PRICING_RE = /pric|plans?\b|billing|\/cost/i;
 
-/** Does this URL's path already look like a pricing page? */
+// Non-pricing sections we must NEVER mistake for a pricing page — e.g. a blog post that merely
+// mentions pricing (/blog/parity-pricing-…) is not a pricing page.
+const NON_PRICING_PATH =
+  /\/(blog|changelog|news|guides?|posts?|articles?|stories|customers|community|careers|about|company|events?|webinars?|resources?|help|support|docs)\b/i;
+
+/**
+ * Does this URL's PATH already look like a dedicated pricing page? A path that merely *mentions*
+ * pricing inside a non-pricing section (e.g. /blog/parity-pricing-polar-astro) does NOT count — we
+ * must run discovery for those instead of treating them as a direct pricing page.
+ */
 export function isLikelyPricingPath(url: string): boolean {
   try {
     const p = new URL(url).pathname.toLowerCase();
     if (p === "/" || p === "") return false;
+    if (NON_PRICING_PATH.test(p)) return false;
     return PRICING_RE.test(p);
   } catch {
     return false;
@@ -127,9 +137,6 @@ async function explorerPick(host: string, candidates: string[]): Promise<string 
  * "Learn more" → /docs/about/pricing), find those deeper pricing pages: pricing-ish links in the
  * page content + conventional docs-pricing paths. Used to chase the complete pricing picture.
  */
-// Non-pricing sections we must NEVER mistake for a pricing page when digging deeper.
-const NON_PRICING_PATH = /\/(blog|changelog|news|guides?|posts?|articles?|stories|customers|community|careers|about|company|events?|webinars?|resources?|help|support|docs)\b/i;
-
 /** True only when the URL PATH itself clearly denotes a pricing page (not a blog about pricing). */
 function isPricingPageUrl(u: string): boolean {
   try {

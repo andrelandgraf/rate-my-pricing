@@ -1,10 +1,4 @@
 import { Agent } from "@mastra/core/agent";
-import { parseEnv } from "@neondatabase/env/v1";
-import config from "../../../neon";
-
-const env = parseEnv(config);
-// The unified chat-completions (MLflow) dialect serves every provider (OpenAI + Claude + Gemini).
-const gatewayUrl = env.aiGateway.baseUrl.replace("/openai/v1", "/mlflow/v1");
 
 // Strong models everywhere — quality over tokens. models.dev `neon` provider catalog.
 export const EXTRACTOR_MODEL = "gpt-5";
@@ -129,11 +123,15 @@ const CATEGORIZER_INSTRUCTIONS = [
 ].join("\n");
 
 function makeAgent(id: string, instructions: string, modelId: string): Agent {
+  // `neon/<model>` magic string: @mastra/core 1.47+ reads NEON_AI_GATEWAY_BASE_URL and
+  // NEON_AI_GATEWAY_TOKEN from the env (injected by `neon deploy` / `neon env pull` when
+  // preview.aiGateway is on) and routes each model to the right gateway endpoint. No manual
+  // url/apiKey and no OPENAI_* — the gateway no longer injects those.
   return new Agent({
     id,
     name: id,
     instructions,
-    model: { id: `neon/${modelId}`, url: gatewayUrl, apiKey: env.aiGateway.apiKey },
+    model: `neon/${modelId}`,
   });
 }
 

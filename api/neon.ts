@@ -1,4 +1,4 @@
-import { defineConfig } from "@neondatabase/config/v1";
+import { defineConfig } from "@neon/config/v1";
 
 export default defineConfig({
   preview: {
@@ -7,7 +7,7 @@ export default defineConfig({
       ratemypricing: {
         name: "rate-my-pricing api",
         source: "src/index.ts",
-        // Neon-managed vars (DATABASE_URL, OPENAI_*, AI Gateway) are injected automatically.
+        // Neon-managed vars (DATABASE_URL, NEON_AI_GATEWAY_*) are injected automatically.
         // Only third-party / custom env is declared here, resolved from process.env at deploy
         // time (load with `neonctl deploy --env .env.deploy`).
         env: {

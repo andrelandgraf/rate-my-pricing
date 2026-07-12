@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { desc, asc, eq, and, sql } from "drizzle-orm";
 import { CATEGORIES } from "./lib/types";
-import { parseEnv } from "@neondatabase/env/v1";
+import { parseEnv } from "@neon/env";
 import config from "../neon";
 import { ratings, ratingHistory } from "./db/schema";
 import { generateRating } from "./lib/rate";
