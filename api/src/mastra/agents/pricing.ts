@@ -2,7 +2,9 @@ import { Agent } from "@mastra/core/agent";
 
 // Strong models everywhere — quality over tokens. models.dev `neon` provider catalog.
 export const EXTRACTOR_MODEL = "gpt-5";
-export const EXTRACTOR_FALLBACK_MODEL = "claude-sonnet-4-5";
+// Different family from the OpenAI primary so a gateway outage on one provider
+// does not take extraction down. Anthropic is no longer in the catalog.
+export const EXTRACTOR_FALLBACK_MODEL = "gemini-3-6-flash";
 export const ANALYST_MODEL = "gpt-5";
 export const CATEGORIZER_MODEL = "gpt-5";
 export const EXPLORER_MODEL = "gpt-5-mini";
@@ -125,7 +127,7 @@ const CATEGORIZER_INSTRUCTIONS = [
 function makeAgent(id: string, instructions: string, modelId: string): Agent {
   // `neon/<model>` magic string: @mastra/core 1.47+ reads NEON_AI_GATEWAY_BASE_URL and
   // NEON_AI_GATEWAY_TOKEN from the env (injected by `neon deploy` / `neon env pull` when
-  // preview.aiGateway is on) and routes each model to the right gateway endpoint. No manual
+  // aiGateway is on) and routes each model to the right gateway endpoint. No manual
   // url/apiKey and no OPENAI_* — the gateway no longer injects those.
   return new Agent({
     id,

@@ -74,10 +74,10 @@ rate-my-pricing/
 ```bash
 cd api
 bun install
-neonctl link            # link your Neon project (us-east-2, preview features)
-neonctl deploy          # provision AI Gateway + deploy the function
+neon link
+neon deploy             # provision AI Gateway + deploy the function
 bun run db:push         # apply the Drizzle schema
-neonctl dev             # run locally with injected env
+neon dev                # run locally with injected env
 ```
 
 ### Web (Next.js)
@@ -91,7 +91,7 @@ bun run dev
 
 ## Tech
 
-- Neon Postgres · Neon Functions · Neon AI Gateway (preview, `us-east-2`)
+- Neon Postgres · Neon Functions · Neon AI Gateway (`us-east-2`)
 - Hono · Drizzle ORM · Vercel AI SDK
 - Next.js 15 (App Router) · React 19 · Tailwind CSS v4
 

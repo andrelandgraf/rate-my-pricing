@@ -2,11 +2,11 @@
 
 A Neon Function is a long-lived Node.js 24 process, which makes it a natural host for a [Mastra](https://mastra.ai) agent: the agent keeps running for the life of the request, and you point its model at the Neon AI Gateway so there are no extra provider keys. You can keep **running the agent on Neon Functions** while shipping its traces to a **Mastra Studio (Mastra Cloud) project** for observability — the agent runs on Neon, the traces are viewable in Mastra.
 
-The shape mirrors any other Node integration (see `references/sentry.md`): instantiate at module load, gate on env vars so local dev and unconfigured branches stay a no-op, and pass secrets at deploy time via `neon.ts`. `@mastra/core` and `@mastra/observability` bundle cleanly through `neon deploy`'s esbuild with no extra config.
+The shape mirrors any other Node integration (see [sentry.md](sentry.md)): instantiate at module load, gate on env vars so local dev and unconfigured branches stay a no-op, and pass secrets at deploy time via `neon.ts`. `@mastra/core` and `@mastra/observability` bundle cleanly through `neon deploy`'s esbuild with no extra config.
 
 ## 1. Define the agent against the Neon AI Gateway
 
-With `@mastra/core` 1.47+, use a `neon/<model>` magic string — Mastra reads `NEON_AI_GATEWAY_BASE_URL` and `NEON_AI_GATEWAY_TOKEN` from the environment (injected by `neon deploy` / `neon env pull` when `preview.aiGateway` is enabled in `neon.ts`). No manual `url`/`apiKey` or MLflow dialect swap is needed; Mastra routes each model to the correct gateway endpoint.
+With `@mastra/core` 1.47+, use a `neon/<model>` magic string — Mastra reads `NEON_AI_GATEWAY_BASE_URL` and `NEON_AI_GATEWAY_TOKEN` from the environment (injected by `neon deploy` / `neon env pull` when `aiGateway` is enabled in `neon.ts`). No manual `url`/`apiKey` or MLflow dialect swap is needed; Mastra routes each model to the correct gateway endpoint.
 
 ```typescript
 // src/mastra/agents/pricing.ts
@@ -102,8 +102,8 @@ functions: {
     name: "my app",
     source: "src/index.ts",
     env: {
-      MASTRA_PROJECT_ID: process.env.MASTRA_PROJECT_ID ?? "",
-      MASTRA_PLATFORM_ACCESS_TOKEN: process.env.MASTRA_PLATFORM_ACCESS_TOKEN ?? "",
+      MASTRA_PROJECT_ID: process.env.MASTRA_PROJECT_ID!,
+      MASTRA_PLATFORM_ACCESS_TOKEN: process.env.MASTRA_PLATFORM_ACCESS_TOKEN!,
     },
   },
 }

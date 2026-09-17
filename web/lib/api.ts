@@ -2,7 +2,7 @@ import type { Rating, RatingSummary, RateResponse, SortKey } from "./types";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
-  "https://br-rough-smoke-w2hoayam-ratemypricing.compute.c-1.us-east-2.aws.neon.build";
+  "https://br-orange-glade-aj0h5crp-ratemypricing.compute.c-3.us-east-2.aws.neon.tech";
 
 /**
  * Server-side: fetch the leaderboard, filtered by category. Never cached.

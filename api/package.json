@@ -5,15 +5,15 @@
   "scripts": {
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "dev": "neonctl dev",
-    "deploy": "neonctl deploy"
+    "dev": "neon dev",
+    "deploy": "neon deploy"
   },
   "dependencies": {
-    "@mastra/core": "^1.49.0",
+    "@mastra/core": "1.49.0",
     "@mastra/observability": "^1.15.2",
-    "@neon/config": "^0.9.2",
-    "@neon/env": "^0.11.1",
-    "@neon/functions": "^0.6.0",
+    "@neon/config": "^1.7.1",
+    "@neon/env": "^1.4.2",
+    "@neon/functions": "^0.11.0",
     "@sentry/node": "^10.56.0",
     "ai": "^5.0.0",
     "drizzle-orm": "^0.45.2",
