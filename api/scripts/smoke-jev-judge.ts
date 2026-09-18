@@ -237,6 +237,8 @@ const cases: SmokeCase[] = [
   {
     name: "incomplete-warn",
     repeats: 1,
+    expectVerdict: "warn",
+    expectIssue: "Captured pricing is materially incomplete.",
     input: caseInput({
       title: "assistant-ui",
       tree: {
