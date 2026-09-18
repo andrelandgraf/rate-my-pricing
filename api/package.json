@@ -6,7 +6,10 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "dev": "neon dev",
-    "deploy": "neon deploy"
+    "deploy": "neon deploy",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "smoke:judge": "bun --env-file=.env.local scripts/smoke-jev-judge.ts"
   },
   "dependencies": {
     "@mastra/core": "1.49.0",
@@ -15,6 +18,7 @@
     "@neon/env": "^1.4.2",
     "@neon/functions": "^0.11.0",
     "@sentry/node": "^10.56.0",
+    "@typesafe-ai/sdk": "^0.6.0",
     "ai": "^5.0.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.0",
@@ -25,6 +29,7 @@
     "@types/pg": "^8.11.10",
     "dotenv": "^16.4.5",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^5.0.1"
   }
 }

@@ -203,6 +203,20 @@ export const judgeSchema = z.object({
 
 export type JudgeVerdict = z.infer<typeof judgeSchema>;
 
+export type JudgeInput = {
+  submittedUrl: string;
+  resolvedUrl: string;
+  title: string;
+  category: Category;
+  tree: PricingTree;
+  meters: number;
+  pricingScore: number;
+  agentScore: number;
+  listed: boolean;
+  source: string;
+  content: string;
+};
+
 export type FetchResult = {
   ok: boolean;
   status: number;
