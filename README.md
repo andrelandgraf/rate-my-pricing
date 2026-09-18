@@ -7,14 +7,16 @@ Rate My Pricing is a playful, full‑stack demo built on **[Neon](https://neon.c
 - A **Next.js** app on Vercel renders a leaderboard and per‑page report cards.
 - A long‑running **Neon Function** (Hono) runs the agent, parses the pricing tree, and scores it.
 - **Neon Postgres** caches every rating so repeat visits are instant.
-- The agent calls an LLM through the **Neon AI Gateway** — one credential, no extra provider keys.
+- Extract, categorize, explore, and analyze call an LLM through the **Neon AI Gateway**.
+- A **TypeSafe Jev** QA gate checks the result before listing. That call uses `TYPESAFE_API_KEY` on the Function, not the Gateway. If Jev is missing or errors, the rating still publishes (the gate fails open).
 
 ## How it works
 
 ```
   user ──▶ Next.js (Vercel) ──▶ Neon Function (Hono agent) ──▶ Neon Postgres (cache)
                                        │
-                                       └─▶ Neon AI Gateway (LLM)
+                                       ├─▶ Neon AI Gateway (LLM)
+                                       └─▶ TypeSafe Jev (QA gate)
 ```
 
 1. You submit a pricing page URL.
@@ -22,7 +24,8 @@ Rate My Pricing is a playful, full‑stack demo built on **[Neon](https://neon.c
 3. Otherwise the agent **curls the page** — preferring `markdown` (via `Accept: text/markdown` or a `.md` URL), falling back to stripped HTML.
 4. The LLM extracts a **standardized pricing tree**: tiers, limits, features, add‑ons, and hidden‑cost signals.
 5. Two scores are computed from the tree by pure, deterministic functions (see [Scoring](#scoring)).
-6. Hit `100 / 100` and you get confetti. 🎉
+6. Jev QA-checks the result (`pass` / `warn` / `fail`). A clear fail unlists the page. The gate cannot 500 `/rate`.
+7. Hit `100 / 100` and you get confetti. 🎉
 
 ## Scoring
 
@@ -76,6 +79,8 @@ cd api
 bun install
 neon link
 neon deploy             # provision AI Gateway + deploy the function
+# After the first TypeSafe key is set, later deploys keep it unless you overwrite it:
+# neon functions deploy ratemypricing --env TYPESAFE_API_KEY=... --wait
 bun run db:push         # apply the Drizzle schema
 neon dev                # run locally with injected env
 ```
@@ -92,7 +97,7 @@ bun run dev
 ## Tech
 
 - Neon Postgres · Neon Functions · Neon AI Gateway (`us-east-2`)
-- Hono · Drizzle ORM · Vercel AI SDK
+- Hono · Drizzle ORM · Vercel AI SDK · TypeSafe Jev
 - Next.js 15 (App Router) · React 19 · Tailwind CSS v4
 
 Made for fun. Not affiliated with any rated site.
